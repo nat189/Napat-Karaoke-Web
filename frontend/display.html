@@ -550,19 +550,16 @@
 </head>
 <body>
 
-    <!-- BACKGROUND / SCREEN SAVER -->
     <div id="background">
         <div class="bg-layer active" id="bg1"></div>
         <div class="bg-layer" id="bg2"></div>
     </div>
 
     <div id="app">
-        <!-- PLAYER -->
         <div id="player-wrapper">
             <div id="player"></div>
         </div>
 
-        <!-- TOP BAR -->
         <div id="top-bar">
             <div class="brand">
                 <div class="brand-icon">🎤</div>
@@ -577,7 +574,6 @@
             </div>
         </div>
 
-        <!-- QR CODE -->
         <div id="qr-panel">
             <div id="qrcode"></div>
             <div class="qr-title">📱 สแกนเพื่อจองเพลง</div>
@@ -585,7 +581,6 @@
             <div class="qr-hint">เปิดกล้องมือถือแล้วสแกน QR</div>
         </div>
 
-        <!-- EMPTY STATE -->
         <div id="empty-state">
             <div class="empty-content">
                 <div class="empty-icon">🎤</div>
@@ -594,14 +589,12 @@
             </div>
         </div>
 
-        <!-- NOW PLAYING -->
         <div id="now-playing" class="hidden">
             <div class="now-label">NOW PLAYING</div>
             <div id="now-title">-</div>
             <div id="now-channel">-</div>
         </div>
 
-        <!-- QUEUE -->
         <div id="queue-box">
             <div class="queue-header">
                 <div class="queue-title">🎶 คิวเพลง</div>
@@ -611,7 +604,6 @@
         </div>
     </div>
 
-    <!-- START OVERLAY -->
     <div id="start-overlay" onclick="initApp()">
         <div class="start-card">
             <div class="start-icon">🎤</div>
@@ -621,7 +613,6 @@
         </div>
     </div>
 
-    <!-- SCORE OVERLAY -->
     <div id="score-overlay">
         <div class="score-card">
             <div class="score-label">🎤 คะแนนเพลงนี้</div>
@@ -630,7 +621,6 @@
         </div>
     </div>
 
-    <!-- YOUTUBE API LOADER -->
     <script>
         const tag = document.createElement("script");
         tag.src = "https://www.youtube.com/iframe_api";
@@ -689,7 +679,7 @@
             const qr = document.getElementById("qrcode");
             qr.innerHTML = "";
             
-            // ลิงก์ไปยัง controller.html (หรือ remote)
+            // ลิงก์ไปยัง controller.html
             const targetUrl = `${window.location.origin}/controller.html?room=${encodeURIComponent(currentRoom)}`;
             new QRCode(qr, {
                 text: targetUrl,
@@ -806,7 +796,6 @@
 
         function syncQueue() {
             updateQueueUI();
-            // กระจายสถานะคิวไปยังมือถือทุกเครื่องที่เชื่อมต่ออยู่
             connections.forEach(conn => {
                 if (conn && conn.open) {
                     try {
@@ -953,6 +942,7 @@
             hideScore();
             try {
                 player.seekTo(0, true);
+                if (typeof player.setPlaybackQuality === "function") player.setPlaybackQuality("hd1080");
                 player.playVideo();
                 scheduleHideUI();
             } catch (error) {
@@ -961,7 +951,7 @@
         }
 
         /* =========================================================
-           PLAYBACK & SCORE TRANSITION
+           PLAYBACK & SCORE TRANSITION (ENFORCED 1080p)
         ========================================================= */
         function playCurrent() {
             clearTimeout(nextSongTimer);
@@ -991,9 +981,29 @@
 
             if (player && typeof player.loadVideoById === "function") {
                 try {
-                    player.loadVideoById(current.videoId);
+                    // 1. ส่งค่าอ็อบเจกต์ระบุ suggestedQuality เป็น hd1080
+                    player.loadVideoById({
+                        videoId: current.videoId,
+                        suggestedQuality: "hd1080"
+                    });
+
+                    // 2. ปลดล็อกเสียงอัตโนมัติ
                     if (typeof player.unMute === "function") player.unMute();
+
+                    // 3. กำชับให้เล่นที่ความละเอียด 1080p
+                    if (typeof player.setPlaybackQuality === "function") {
+                        player.setPlaybackQuality("hd1080");
+                    }
+
                     setTimeout(disableYouTubeCaptions, 800);
+
+                    // 4. ตั้งเวลากำชับ 1080p อีกรอบหลังจากวิดีโอบัฟเฟอร์เรียบร้อย
+                    setTimeout(() => {
+                        if (player && typeof player.setPlaybackQuality === "function") {
+                            player.setPlaybackQuality("hd1080");
+                        }
+                    }, 1500);
+
                 } catch (error) {
                     console.error("loadVideoById error:", error);
                 }
@@ -1070,6 +1080,7 @@
                     cc_load_policy: 0,
                     playsinline: 1,
                     enablejsapi: 1,
+                    vq: "hd1080", // Hint ตั้งต้นให้ YouTube พยายามเริ่มที่ 1080p
                     origin: window.location.origin
                 },
                 events: {
@@ -1103,6 +1114,10 @@
                 disableYouTubeCaptions();
                 scheduleHideUI();
                 startScoreWatcher();
+                // บังคับความละเอียด 1080p ทันทีที่เข้าสถานะกำลังเล่น
+                if (player && typeof player.setPlaybackQuality === "function") {
+                    player.setPlaybackQuality("hd1080");
+                }
             } else if (event.data === YT.PlayerState.PAUSED) {
                 showUI();
                 stopScoreWatcher();
