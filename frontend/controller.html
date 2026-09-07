@@ -32,14 +32,16 @@
         html, body {
             margin: 0;
             padding: 0;
-            min-height: 100%;
+            width: 100%;
+            min-height: 100vh;
             background: var(--dark);
             color: white;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            font-size: 16px;
         }
 
         body {
-            padding-bottom: 35px;
+            padding-bottom: 40px;
         }
 
         button, input {
@@ -51,9 +53,10 @@
         }
 
         .app {
-            width: min(620px, 100%);
-            margin: auto;
-            padding: 14px;
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 16px;
         }
 
         /* HEADER */
@@ -61,35 +64,35 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 14px 4px 18px;
+            padding: 10px 0 16px;
         }
 
         .brand {
             display: flex;
             align-items: center;
-            gap: 11px;
+            gap: 12px;
         }
 
         .brand-icon {
-            width: 44px;
-            height: 44px;
+            width: 48px;
+            height: 48px;
             display: grid;
             place-items: center;
             border-radius: 14px;
             background: linear-gradient(135deg, var(--red), #ff7048);
-            font-size: 22px;
+            font-size: 24px;
             box-shadow: 0 8px 25px rgba(255,45,85,.28);
         }
 
         .brand-title {
-            font-size: 17px;
+            font-size: 18px;
             font-weight: 900;
         }
 
         .brand-sub {
             margin-top: 2px;
             color: var(--muted);
-            font-size: 11px;
+            font-size: 12px;
         }
 
         /* CONNECTION */
@@ -97,17 +100,17 @@
             display: flex;
             align-items: center;
             gap: 7px;
-            padding: 8px 11px;
+            padding: 8px 12px;
             border-radius: 20px;
             background: rgba(255,255,255,.05);
             border: 1px solid var(--border);
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 700;
         }
 
         .connection-dot {
-            width: 8px;
-            height: 8px;
+            width: 9px;
+            height: 9px;
             border-radius: 50%;
             background: var(--orange);
         }
@@ -123,8 +126,8 @@
 
         /* ROOM CARD */
         .room-card {
-            padding: 14px 16px;
-            margin-bottom: 12px;
+            padding: 16px;
+            margin-bottom: 14px;
             border-radius: 18px;
             background: linear-gradient(135deg, rgba(255,45,85,.10), rgba(191,90,242,.07));
             border: 1px solid var(--border);
@@ -132,39 +135,39 @@
 
         .room-label {
             color: var(--muted);
-            font-size: 10px;
+            font-size: 11px;
             font-weight: 700;
             letter-spacing: 1px;
         }
 
         .room-code {
-            margin-top: 3px;
-            font-size: 19px;
+            margin-top: 4px;
+            font-size: 22px;
             font-weight: 900;
             letter-spacing: 1px;
         }
 
         .room-hint {
-            margin-top: 3px;
+            margin-top: 4px;
             color: #777;
-            font-size: 11px;
+            font-size: 12px;
         }
 
         /* MAIN CONTROLS */
         .main-controls {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 9px;
-            margin-bottom: 14px;
+            gap: 10px;
+            margin-bottom: 16px;
         }
 
         .control-btn {
             border: 0;
             border-radius: 16px;
-            min-height: 54px;
+            min-height: 56px;
             color: white;
             font-weight: 900;
-            font-size: 14px;
+            font-size: 15px;
             transition: transform .12s ease, opacity .12s ease;
         }
 
@@ -187,14 +190,14 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin: 18px 3px 9px;
-            font-size: 14px;
+            margin: 20px 4px 10px;
+            font-size: 15px;
             font-weight: 900;
         }
 
         .section-count {
             color: var(--green);
-            font-size: 11px;
+            font-size: 12px;
         }
 
         .search-box {
@@ -205,13 +208,13 @@
         #search-input {
             min-width: 0;
             flex: 1;
-            padding: 14px 15px;
+            padding: 14px 16px;
             border-radius: 14px;
             border: 1px solid #29292e;
             outline: none;
             background: #141416;
             color: white;
-            font-size: 14px;
+            font-size: 15px;
         }
 
         #search-input::placeholder {
@@ -224,37 +227,37 @@
         }
 
         .btn-search {
-            width: 78px;
+            width: 85px;
             border: 0;
             border-radius: 14px;
             background: var(--blue);
             color: white;
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 900;
         }
 
         /* SEARCH RESULTS */
         #results {
-            margin-top: 10px;
+            margin-top: 12px;
         }
 
         .result-item {
             display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 10px;
-            margin-bottom: 8px;
+            gap: 12px;
+            padding: 12px;
+            margin-bottom: 10px;
             border-radius: 16px;
             background: var(--card);
             border: 1px solid var(--border);
         }
 
         .result-thumb {
-            width: 78px;
-            height: 52px;
+            width: 85px;
+            height: 56px;
             flex-shrink: 0;
             object-fit: cover;
-            border-radius: 9px;
+            border-radius: 10px;
             background: #000;
         }
 
@@ -268,7 +271,7 @@
             display: -webkit-box;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
-            font-size: 12px;
+            font-size: 14px;
             font-weight: 700;
             line-height: 1.35;
         }
@@ -279,17 +282,17 @@
             white-space: nowrap;
             text-overflow: ellipsis;
             color: #777;
-            font-size: 10px;
+            font-size: 11px;
         }
 
         .btn-add {
             flex-shrink: 0;
             border: 0;
-            padding: 9px 12px;
-            border-radius: 11px;
+            padding: 10px 14px;
+            border-radius: 12px;
             background: var(--red);
             color: white;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 900;
         }
 
@@ -301,14 +304,14 @@
             padding: 25px 10px;
             text-align: center;
             color: #777;
-            font-size: 13px;
+            font-size: 14px;
         }
 
         .error {
             padding: 20px;
             text-align: center;
             color: var(--red);
-            font-size: 13px;
+            font-size: 14px;
         }
 
         /* QUEUE */
@@ -320,23 +323,23 @@
         }
 
         #queue-list {
-            padding: 7px;
+            padding: 8px;
         }
 
         .queue-empty {
-            padding: 28px 10px;
+            padding: 30px 10px;
             text-align: center;
             color: #666;
-            font-size: 13px;
+            font-size: 14px;
         }
 
         .queue-item {
             position: relative;
             display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 11px;
-            margin-bottom: 6px;
+            gap: 12px;
+            padding: 12px;
+            margin-bottom: 8px;
             border-radius: 14px;
             background: rgba(255,255,255,.035);
             border: 1px solid rgba(255,255,255,.05);
@@ -353,15 +356,15 @@
         }
 
         .queue-number {
-            width: 32px;
-            height: 32px;
+            width: 34px;
+            height: 34px;
             flex-shrink: 0;
             display: grid;
             place-items: center;
             border-radius: 10px;
             background: #29292d;
             color: #aaa;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 900;
         }
 
@@ -378,7 +381,7 @@
         .queue-status {
             margin-bottom: 3px;
             color: var(--green);
-            font-size: 9px;
+            font-size: 10px;
             font-weight: 900;
         }
 
@@ -386,7 +389,7 @@
             overflow: hidden;
             white-space: nowrap;
             text-overflow: ellipsis;
-            font-size: 12px;
+            font-size: 13px;
             font-weight: 700;
         }
 
@@ -396,26 +399,26 @@
             white-space: nowrap;
             text-overflow: ellipsis;
             color: #666;
-            font-size: 9px;
+            font-size: 10px;
         }
 
         .queue-actions {
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 6px;
         }
 
         .queue-btn {
-            width: 35px;
-            height: 35px;
+            width: 36px;
+            height: 36px;
             display: grid;
             place-items: center;
             padding: 0;
             border: 0;
-            border-radius: 9px;
+            border-radius: 10px;
             background: #29292d;
             color: white;
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 900;
         }
 
@@ -433,28 +436,28 @@
 
         .queue-btn.retry {
             width: auto;
-            padding: 0 9px;
+            padding: 0 10px;
             color: #000;
             background: white;
-            font-size: 10px;
+            font-size: 11px;
         }
 
         /* TOAST */
         #toast {
             position: fixed;
             left: 50%;
-            bottom: 22px;
+            bottom: 25px;
             z-index: 999;
             transform: translate(-50%, 20px);
             opacity: 0;
             pointer-events: none;
-            padding: 11px 16px;
+            padding: 12px 18px;
             border-radius: 30px;
-            background: rgba(25,25,28,.94);
-            border: 1px solid rgba(255,255,255,.12);
-            box-shadow: 0 10px 35px rgba(0,0,0,.45);
+            background: rgba(25,25,28,.95);
+            border: 1px solid rgba(255,255,255,.15);
+            box-shadow: 0 10px 35px rgba(0,0,0,.5);
             color: white;
-            font-size: 12px;
+            font-size: 13px;
             font-weight: 700;
             transition: opacity .25s ease, transform .25s ease;
             white-space: nowrap;
@@ -463,14 +466,6 @@
         #toast.show {
             opacity: 1;
             transform: translate(-50%, 0);
-        }
-
-        @media (max-width: 420px) {
-            .app { padding: 11px; }
-            .brand-title { font-size: 15px; }
-            .result-thumb { width: 70px; height: 48px; }
-            .btn-add { padding: 8px 10px; }
-            .queue-btn { width: 32px; height: 32px; }
         }
     </style>
 </head>
@@ -539,7 +534,6 @@
 <div id="toast"></div>
 
 <script>
-    /* STATE */
     let peer = null;
     let conn = null;
     let roomId = "";
@@ -548,7 +542,6 @@
     let reconnectTimer = null;
     let toastTimer = null;
 
-    /* ROOM */
     function getRoom() {
         const params = new URLSearchParams(window.location.search);
         const urlRoom = params.get("room") || params.get("r");
@@ -563,7 +556,6 @@
         document.getElementById("room-code").innerText = roomId || "ไม่พบ Room";
     }
 
-    /* PEERJS NETWORKING */
     function initPeer() {
         if (!roomId) {
             setConnection("ไม่พบ Room", false);
@@ -581,7 +573,6 @@
         }
 
         peer.on("open", () => {
-            console.log("Controller Peer ID:", peer.id);
             connectToTV();
         });
 
@@ -600,11 +591,9 @@
         }
 
         setConnection("กำลังเชื่อมต่อ TV", false);
-
         conn = peer.connect(roomId, { reliable: true });
 
         conn.on("open", () => {
-            console.log("Connected to TV:", roomId);
             setConnection("เชื่อมต่อแล้ว", true);
             showToast("🟢 เชื่อมต่อ TV แล้ว");
         });
@@ -612,7 +601,6 @@
         conn.on("data", handleData);
 
         conn.on("close", () => {
-            console.log("TV connection closed");
             setConnection("TV หลุดการเชื่อมต่อ", false);
             scheduleReconnect();
         });
@@ -636,7 +624,6 @@
         }, 3000);
     }
 
-    /* RECEIVE DATA */
     function handleData(data) {
         if (!data || !data.type) return;
 
@@ -646,7 +633,6 @@
         }
     }
 
-    /* SEND ACTION */
     function sendAction(type, payload = {}) {
         if (!conn || !conn.open) {
             showToast("🔴 ยังไม่ได้เชื่อมต่อ TV");
@@ -663,7 +649,6 @@
         }
     }
 
-    /* CONTROLS */
     function togglePlay() {
         isPaused = !isPaused;
         const success = sendAction("TOGGLE_PLAY", { isPaused });
@@ -679,7 +664,6 @@
         button.innerText = isPaused ? "▶️ เล่นต่อ" : "⏸️ หยุดชั่วคราว";
     }
 
-    /* SEARCH MUSIC */
     async function searchMusic() {
         const input = document.getElementById("search-input");
         const q = input.value.trim();
@@ -689,7 +673,6 @@
             return;
         }
 
-        // ยุบคีย์บอร์ดบนมือถือ
         input.blur();
 
         const results = document.getElementById("results");
@@ -704,7 +687,6 @@
 
             const data = await response.json();
 
-            // ยืดหยุ่น: รองรับทั้ง [ ... ] และ { success: true, results: [ ... ] }
             let songs = [];
             if (Array.isArray(data)) {
                 songs = data;
@@ -714,7 +696,6 @@
                 throw new Error("รูปแบบข้อมูลจากเซิร์ฟเวอร์ไม่ถูกต้อง");
             }
 
-            // แปลง id เป็น videoId อัตโนมัติ เพื่อความเข้ากันได้
             songs = songs.map(s => ({
                 ...s,
                 videoId: s.videoId || s.id,
@@ -786,7 +767,6 @@
         }
     }
 
-    /* QUEUE RENDER */
     function renderQueue() {
         const list = document.getElementById("queue-list");
         const count = document.getElementById("queue-count");
@@ -844,7 +824,6 @@
         showToast("🔄 เริ่มเพลงใหม่");
     }
 
-    /* CONNECTION UI */
     function setConnection(text, online) {
         const box = document.getElementById("connection");
         const label = document.getElementById("connection-text");
@@ -853,7 +832,6 @@
         else box.classList.remove("online");
     }
 
-    /* TOAST */
     function showToast(message) {
         const toast = document.getElementById("toast");
         toast.innerText = message;
@@ -876,7 +854,6 @@
         if (event.key === "Enter") searchMusic();
     });
 
-    /* INIT */
     getRoom();
     initPeer();
     renderQueue();
