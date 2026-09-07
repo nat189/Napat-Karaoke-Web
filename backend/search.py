@@ -1,6 +1,6 @@
 import yt_dlp
 
-def search_youtube_karaoke(query: str, max_results: int = 6):
+def search_youtube_karaoke(query: str, max_results: int = 20):
     search_query = f"ytsearch{max_results}:{query} คาราโอเกะ"
     ydl_opts = {
         'extract_flat': True,
