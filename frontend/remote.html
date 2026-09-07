@@ -1,1 +1,92 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>รีโมทคาราโอเกะ</title>
+  <style>
+    body { font-family: sans-serif; background: #f4f5f7; margin: 0; padding: 15px; color: #333; }
+    .header { text-align: center; margin-bottom: 20px; }
+    .search-box { display: flex; gap: 8px; margin-bottom: 20px; }
+    input { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px; }
+    button { padding: 12px 18px; border-radius: 8px; border: none; background: #e02424; color: white; font-weight: bold; cursor: pointer; }
+    .song-card { display: flex; align-items: center; background: white; padding: 10px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .song-card img { width: 80px; height: 60px; object-fit: cover; border-radius: 6px; margin-right: 12px; }
+    .song-title { flex: 1; font-size: 14px; font-weight: 500; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .btn-add { background: #2563eb; padding: 8px 12px; font-size: 14px; }
+    .current-box { background: #e0e7ff; border-radius: 8px; padding: 12px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+  </style>
+</head>
+<body>
 
+  <div class="header">
+    <h2>🎤 Napat Remote</h2>
+  </div>
+
+  <div id="current-panel" class="current-box" style="display:none;">
+    <div>
+      <div style="font-size: 12px; color: #4338ca;">กำลังเล่นอยู่:</div>
+      <strong id="now-playing-title">-</strong>
+    </div>
+    <button onclick="skipSong()" style="background:#dc2626; padding: 8px 12px;">ข้าม</button>
+  </div>
+
+  <div class="search-box">
+    <input type="text" id="searchInput" placeholder="พิมพ์ชื่อเพลงหรือศิลปิน...">
+    <button onclick="searchSong()">ค้นหา</button>
+  </div>
+
+  <div id="results"></div>
+
+  <script>
+    async function searchSong() {
+      const q = document.getElementById('searchInput').value.trim();
+      if (!q) return;
+      const resContainer = document.getElementById('results');
+      resContainer.innerHTML = '<p style="text-align:center;">กำลังค้นหา...</p>';
+
+      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+      const songs = await res.json();
+
+      resContainer.innerHTML = '';
+      songs.forEach(song => {
+        const item = document.createElement('div');
+        item.className = 'song-card';
+        item.innerHTML = `
+          <img src="${song.thumbnail}" alt="">
+          <div class="song-title">${song.title}</div>
+          <button class="btn-add" onclick='queueSong(${JSON.stringify(song)})'>จองเพลง</button>
+        `;
+        resContainer.appendChild(item);
+      });
+    }
+
+    async function queueSong(song) {
+      await fetch('/api/queue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(song)
+      });
+      alert(`จองเพลง: ${song.title} สำเร็จ!`);
+    }
+
+    async function skipSong() {
+      await fetch('/api/next', { method: 'POST' });
+    }
+
+    // เชื่อมต่อ WebSocket เพื่ออัปเดตเพลงปัจจุบัน
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws`);
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      const panel = document.getElementById('current-panel');
+      if (data.current) {
+        panel.style.display = 'flex';
+        document.getElementById('now-playing-title').innerText = data.current.title;
+      } else {
+        panel.style.display = 'none';
+      }
+    };
+  </script>
+</body>
+</html>
