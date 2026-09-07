@@ -1,124 +1,1249 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8">
-  <title>Napat Karaoke Pro - TV Display</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #111; color: white; overflow: hidden; height: 100vh; }
-    
-    #standby-screen {
-      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.8)), url('https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?q=80&w=1920&auto=format&fit=crop') center/cover;
-      display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;
-    }
-    .hero-title { font-size: 3.5rem; margin-bottom: 10px; font-weight: bold; }
-    .hero-sub { font-size: 1.5rem; opacity: 0.8; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Napat Karaoke Pro — Display</title>
 
-    /* กรอบ QR Code มุมขวาล่าง */
-    #qr-container {
-      position: absolute; bottom: 30px; right: 30px; background: rgba(255,255,255,0.95);
-      padding: 15px; border-radius: 12px; color: #111; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-    }
-    #qrcode { margin-bottom: 8px; display: flex; justify-content: center; }
-    #qr-container p { font-size: 0.85rem; font-weight: bold; }
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
-    /* Player Container */
-    #player-screen { display: none; width: 100%; height: 100%; position: relative; }
-    iframe { width: 100%; height: 100%; border: none; }
-    
-    /* Overlay แสดงคิวเพลงถัดไปบนจอทีวี */
-    #queue-overlay {
-      position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.7);
-      padding: 10px 20px; border-radius: 8px; font-size: 1.1rem;
-    }
-  </style>
+    <style>
+        * { box-sizing: border-box; }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #050505;
+            color: #fff;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            position: relative;
+        }
+
+        /* =========================================================
+           BACKGROUND / SCREEN SAVER
+        ========================================================= */
+        #background {
+            position: fixed;
+            inset: 0;
+            overflow: hidden;
+            z-index: 0;
+            background: #050505;
+        }
+
+        .bg-layer {
+            position: absolute;
+            inset: 0;
+            background-size: cover;
+            background-position: center;
+            opacity: 0;
+            transition: opacity 2s ease-in-out;
+        }
+
+        .bg-layer.active {
+            opacity: 1;
+        }
+
+        #background::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 0.78));
+            pointer-events: none;
+        }
+
+        /* =========================================================
+           MAIN WRAPPER
+        ========================================================= */
+        #app {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* =========================================================
+           TOP BAR
+        ========================================================= */
+        #top-bar {
+            position: absolute;
+            top: 22px;
+            left: 28px;
+            right: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 20;
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+
+        #top-bar.hidden {
+            opacity: 0;
+            transform: translateY(-15px);
+            pointer-events: none;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 45, 85, 0.9);
+            box-shadow: 0 8px 30px rgba(255, 45, 85, 0.35);
+            font-size: 22px;
+        }
+
+        .brand-text strong {
+            display: block;
+            font-size: 20px;
+            font-weight: 800;
+        }
+
+        .brand-text span {
+            display: block;
+            margin-top: 2px;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.65);
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 10px 15px;
+            border-radius: 999px;
+            background: rgba(0, 0, 0, 0.42);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            font-size: 13px;
+        }
+
+        .status-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: #ff2d55;
+            box-shadow: 0 0 12px rgba(255, 45, 85, 0.7);
+        }
+
+        .status-dot.online {
+            background: #32d74b;
+            box-shadow: 0 0 12px rgba(50, 215, 75, 0.7);
+        }
+
+        /* =========================================================
+           PLAYER
+        ========================================================= */
+        #player-wrapper {
+            position: absolute;
+            inset: 0;
+            display: none;
+            z-index: 5;
+            background: #000;
+        }
+
+        #player {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        #player iframe {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        /* =========================================================
+           NOW PLAYING
+        ========================================================= */
+        #now-playing {
+            position: absolute;
+            left: 28px;
+            bottom: 28px;
+            max-width: min(60vw, 760px);
+            padding: 15px 20px;
+            border-radius: 18px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            z-index: 15;
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+
+        #now-playing.hidden {
+            opacity: 0;
+            transform: translateY(15px);
+            pointer-events: none;
+        }
+
+        .now-label {
+            font-size: 11px;
+            color: #ff6a00;
+            font-weight: 800;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        #now-title {
+            font-size: 23px;
+            font-weight: 800;
+            line-height: 1.25;
+        }
+
+        #now-channel {
+            margin-top: 5px;
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.62);
+        }
+
+        /* =========================================================
+           QUEUE
+        ========================================================= */
+        #queue-box {
+            position: absolute;
+            left: 28px;
+            bottom: 28px;
+            width: 330px;
+            max-height: 55vh;
+            padding: 17px;
+            border-radius: 22px;
+            background: rgba(0, 0, 0, 0.52);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            z-index: 15;
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+
+        #queue-box.hidden {
+            opacity: 0;
+            transform: translateY(15px);
+            pointer-events: none;
+        }
+
+        .queue-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .queue-title {
+            font-size: 15px;
+            font-weight: 800;
+        }
+
+        .queue-count {
+            min-width: 27px;
+            height: 27px;
+            padding: 0 8px;
+            border-radius: 999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 45, 85, 0.2);
+            color: #ff6a00;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        #queue-list {
+            max-height: calc(55vh - 65px);
+            overflow-y: auto;
+            scrollbar-width: thin;
+        }
+
+        .queue-item {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            padding: 9px;
+            margin-bottom: 7px;
+            border-radius: 13px;
+            background: rgba(255, 255, 255, 0.055);
+        }
+
+        .queue-item.playing {
+            background: rgba(255, 45, 85, 0.16);
+            border: 1px solid rgba(255, 45, 85, 0.25);
+        }
+
+        .queue-thumb {
+            width: 58px;
+            height: 38px;
+            object-fit: cover;
+            border-radius: 8px;
+            flex-shrink: 0;
+            background: #222;
+        }
+
+        .queue-info {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .queue-name {
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1.3;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .queue-sub {
+            margin-top: 3px;
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.5);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .playing-badge {
+            font-size: 9px;
+            color: #ff6a00;
+            font-weight: 800;
+            margin-top: 3px;
+        }
+
+        /* =========================================================
+           QR PANEL
+        ========================================================= */
+        #qr-panel {
+            position: absolute;
+            bottom: 28px;
+            right: 28px;
+            width: 210px;
+            padding: 15px;
+            border-radius: 22px;
+            background: rgba(0, 0, 0, 0.58);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            z-index: 18;
+            text-align: center;
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+
+        #qr-panel.hidden {
+            opacity: 0;
+            transform: translateY(-10px) scale(0.96);
+            pointer-events: none;
+        }
+
+        #qrcode {
+            width: 170px;
+            height: 170px;
+            margin: 0 auto 10px;
+            padding: 8px;
+            background: #fff;
+            border-radius: 14px;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #qrcode img {
+            display: block;
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .qr-title {
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .room-code {
+            margin-top: 5px;
+            color: #ff6a00;
+            font-size: 14px;
+            font-weight: 900;
+            letter-spacing: 1px;
+        }
+
+        .qr-hint {
+            margin-top: 6px;
+            color: rgba(255, 255, 255, 0.55);
+            font-size: 10px;
+            line-height: 1.4;
+        }
+
+        /* =========================================================
+           START OVERLAY
+        ========================================================= */
+        #start-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(circle at center, rgba(255, 45, 85, 0.16), rgba(0, 0, 0, 0.96) 55%);
+            cursor: pointer;
+        }
+
+        .start-card {
+            width: min(90vw, 480px);
+            padding: 38px;
+            border-radius: 28px;
+            text-align: center;
+            background: rgba(20, 20, 20, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 30px 100px rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+        }
+
+        .start-icon {
+            font-size: 58px;
+            margin-bottom: 15px;
+        }
+
+        .start-card h1 {
+            margin: 0;
+            font-size: 30px;
+        }
+
+        .start-card p {
+            margin: 12px 0 25px;
+            color: rgba(255, 255, 255, 0.58);
+            line-height: 1.5;
+        }
+
+        .start-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 210px;
+            padding: 14px 24px;
+            border: 0;
+            border-radius: 999px;
+            background: #ff2d55;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 12px 35px rgba(255, 45, 85, 0.35);
+        }
+
+        /* =========================================================
+           SCORE OVERLAY
+        ========================================================= */
+        #score-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 80;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            background: radial-gradient(circle, rgba(255, 106, 0, 0.16), transparent 55%);
+        }
+
+        #score-overlay.show {
+            display: flex;
+        }
+
+        .score-card {
+            text-align: center;
+            animation: scorePop 0.7s ease;
+        }
+
+        .score-label {
+            font-size: 22px;
+            font-weight: 800;
+        }
+
+        .score-number {
+            margin-top: 8px;
+            font-size: clamp(90px, 15vw, 180px);
+            line-height: 0.95;
+            font-weight: 1000;
+            color: #ff6a00;
+            text-shadow: 0 0 25px rgba(255, 106, 0, 0.45), 0 0 80px rgba(255, 45, 85, 0.3);
+        }
+
+        .score-message {
+            margin-top: 10px;
+            font-size: 26px;
+            font-weight: 900;
+        }
+
+        @keyframes scorePop {
+            0% { opacity: 0; transform: scale(0.6); }
+            60% { opacity: 1; transform: scale(1.08); }
+            100% { transform: scale(1); }
+        }
+
+        /* =========================================================
+           EMPTY / SCREEN SAVER
+        ========================================================= */
+        #empty-state {
+            position: absolute;
+            inset: 0;
+            z-index: 4;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            text-align: center;
+        }
+
+        .empty-content {
+            margin-top: -5vh;
+            padding: 30px;
+        }
+
+        .empty-icon {
+            font-size: 70px;
+            filter: drop-shadow(0 10px 30px rgba(255, 45, 85, 0.25));
+        }
+
+        .empty-title {
+            margin-top: 12px;
+            font-size: 30px;
+            font-weight: 900;
+        }
+
+        .empty-text {
+            margin-top: 8px;
+            color: rgba(255, 255, 255, 0.55);
+            font-size: 15px;
+        }
+
+        @media (max-width: 900px) {
+            #queue-box { width: 280px; }
+            #qr-panel { width: 190px; }
+            #qrcode { width: 150px; height: 150px; }
+            #now-title { font-size: 18px; }
+        }
+
+        @media (max-width: 650px) {
+            #top-bar { left: 14px; right: 14px; top: 14px; }
+            #queue-box { left: 14px; right: auto; bottom: 14px; width: 280px; max-height: 35vh; }
+            #queue-list { max-height: calc(35vh - 65px); }
+            #now-playing { left: 14px; bottom: calc(35vh + 30px); max-width: calc(100vw - 28px); }
+            #qr-panel { right: 14px; bottom: 14px; }
+            .brand-text { display: none; }
+            .status { font-size: 11px; }
+        }
+    </style>
 </head>
 <body>
 
-  <!-- จอ Standby ก่อนเริ่มเพลง -->
-  <div id="standby-screen">
-    <div style="font-size: 4rem; margin-bottom: 20px;">🎤</div>
-    <div class="hero-title">พร้อมร้องเพลงแล้วหรือยัง?</div>
-    <div class="hero-sub">สแกน QR Code เพื่อค้นหาและจองเพลง</div>
-  </div>
+    <!-- BACKGROUND / SCREEN SAVER -->
+    <div id="background">
+        <div class="bg-layer active" id="bg1"></div>
+        <div class="bg-layer" id="bg2"></div>
+    </div>
 
-  <!-- จอแสดงผลเมื่อกำลังเล่นวิดีโอ YouTube -->
-  <div id="player-screen">
-    <div id="yt-player"></div>
-    <div id="queue-overlay">คิวถัดไป: <span id="next-song-title">-</span></div>
-  </div>
+    <div id="app">
+        <!-- PLAYER -->
+        <div id="player-wrapper">
+            <div id="player"></div>
+        </div>
 
-  <!-- กล่อง QR Code สำหรับจอยห้อง -->
-  <div id="qr-container">
-    <div id="qrcode"></div>
-    <p>📱 สแกนเพื่อเลือกเพลง</p>
-  </div>
+        <!-- TOP BAR -->
+        <div id="top-bar">
+            <div class="brand">
+                <div class="brand-icon">🎤</div>
+                <div class="brand-text">
+                    <strong>Napat Karaoke Pro</strong>
+                    <span>TV Display</span>
+                </div>
+            </div>
+            <div class="status">
+                <span id="status-dot" class="status-dot"></span>
+                <span id="status-text">กำลังเริ่มระบบ...</span>
+            </div>
+        </div>
 
-  <script>
-    // 1. สร้าง QR Code ตาม URL ของเครื่องจริง
-    const remoteUrl = window.location.origin + '/remote';
-    new QRCode(document.getElementById("qrcode"), {
-      text: remoteUrl,
-      width: 130,
-      height: 130
-    });
+        <!-- QR CODE -->
+        <div id="qr-panel">
+            <div id="qrcode"></div>
+            <div class="qr-title">📱 สแกนเพื่อจองเพลง</div>
+            <div id="room-code" class="room-code">-</div>
+            <div class="qr-hint">เปิดกล้องมือถือแล้วสแกน QR</div>
+        </div>
 
-    // 2. โหลด YouTube IFrame API
-    let player;
-    let currentVideoId = null;
+        <!-- EMPTY STATE -->
+        <div id="empty-state">
+            <div class="empty-content">
+                <div class="empty-icon">🎤</div>
+                <div class="empty-title">พร้อมร้องเพลงแล้วหรือยัง?</div>
+                <div class="empty-text">สแกน QR Code เพื่อค้นหาและจองเพลง</div>
+            </div>
+        </div>
 
-    const tag = document.createElement('script');
-    tag.src = "https://www.youtube.com/iframe_api";
-    document.head.appendChild(tag);
+        <!-- NOW PLAYING -->
+        <div id="now-playing" class="hidden">
+            <div class="now-label">NOW PLAYING</div>
+            <div id="now-title">-</div>
+            <div id="now-channel">-</div>
+        </div>
 
-    function onYouTubeIframeAPIReady() {
-      player = new YT.Player('yt-player', {
-        height: '100%',
-        width: '100%',
-        playerVars: { 'autoplay': 1, 'controls': 1, 'rel': 0 },
-        events: { 'onStateChange': onPlayerStateChange }
-      });
-    }
+        <!-- QUEUE -->
+        <div id="queue-box">
+            <div class="queue-header">
+                <div class="queue-title">🎶 คิวเพลง</div>
+                <div id="queue-count" class="queue-count">0</div>
+            </div>
+            <div id="queue-list"></div>
+        </div>
+    </div>
 
-    function onPlayerStateChange(event) {
-      // เมื่อเพลงเล่นจบ (State = 0) สั่งให้ข้ามไปเพลงถัดไปอัตโนมัติ
-      if (event.data === YT.PlayerState.ENDED) {
-        fetch('/api/next', { method: 'POST' });
-      }
-    }
+    <!-- START OVERLAY -->
+    <div id="start-overlay" onclick="initApp()">
+        <div class="start-card">
+            <div class="start-icon">🎤</div>
+            <h1>Napat Karaoke Pro</h1>
+            <p>กดเริ่มเพื่อเปิดระบบคาราโอเกะบน TV</p>
+            <button class="start-button">▶ เริ่มใช้งาน</button>
+        </div>
+    </div>
 
-    // 3. เชื่อมต่อ WebSocket รับคิวเพลง
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws`);
+    <!-- SCORE OVERLAY -->
+    <div id="score-overlay">
+        <div class="score-card">
+            <div class="score-label">🎤 คะแนนเพลงนี้</div>
+            <div id="score-number" class="score-number">95</div>
+            <div id="score-message" class="score-message">สุดยอด! 🔥</div>
+        </div>
+    </div>
 
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      const standby = document.getElementById('standby-screen');
-      const playerScreen = document.getElementById('player-screen');
+    <!-- YOUTUBE API LOADER -->
+    <script>
+        const tag = document.createElement("script");
+        tag.src = "https://www.youtube.com/iframe_api";
+        document.head.appendChild(tag);
+    </script>
 
-      if (data.current) {
-        standby.style.display = 'none';
-        playerScreen.style.display = 'block';
+    <script>
+        /* =========================================================
+           STATE
+        ========================================================= */
+        let peer = null;
+        let connections = []; // รองรับรีโมทหลายเครื่องพร้อมกัน
+        let currentRoom = "";
+        let queue = [];
+        let player = null;
+        let isAppReady = false;
+        let isTransitioning = false;
+        let nextSongTimer = null;
+        let uiTimer = null;
+        let nowPlayingTimer = null;
+        let bgTimer = null;
+        let bgIndex = 0;
+        let activeBg = 1;
+        let scoreWatcher = null;
 
-        if (currentVideoId !== data.current.id) {
-          currentVideoId = data.current.id;
-          if (player && player.loadVideoById) {
-            player.loadVideoById(currentVideoId);
-          }
+        const backgrounds = [
+            "https://picsum.photos/1920/1080?random=101",
+            "https://picsum.photos/1920/1080?random=102",
+            "https://picsum.photos/1920/1080?random=103",
+            "https://picsum.photos/1920/1080?random=104",
+            "https://picsum.photos/1920/1080?random=105"
+        ];
+
+        /* =========================================================
+           ROOM & QR
+        ========================================================= */
+        function initRoom() {
+            const params = new URLSearchParams(window.location.search);
+            const urlRoom = params.get("room") || params.get("r");
+            const savedRoom = sessionStorage.getItem("k_room");
+
+            if (urlRoom) {
+                currentRoom = urlRoom.toLowerCase();
+            } else if (savedRoom) {
+                currentRoom = savedRoom;
+            } else {
+                currentRoom = "room_" + Math.random().toString(36).substring(2, 7);
+                sessionStorage.setItem("k_room", currentRoom);
+            }
+
+            document.getElementById("room-code").innerText = currentRoom;
+            createQRCode();
         }
-      } else {
-        standby.style.display = 'flex';
-        playerScreen.style.display = 'none';
-        currentVideoId = null;
-        if (player && player.stopVideo) player.stopVideo();
-      }
 
-      // แสดงชื่อเพลงถัดไป
-      const nextTitle = data.queue.length > 0 ? data.queue[0].title : 'ไม่มีเพลงในคิว';
-      document.getElementById('next-song-title').innerText = nextTitle;
-    };
-  </script>
+        function createQRCode() {
+            const qr = document.getElementById("qrcode");
+            qr.innerHTML = "";
+            
+            // ลิงก์ไปยัง controller.html (หรือ remote)
+            const targetUrl = `${window.location.origin}/controller.html?room=${encodeURIComponent(currentRoom)}`;
+            new QRCode(qr, {
+                text: targetUrl,
+                width: 154,
+                height: 154,
+                correctLevel: QRCode.CorrectLevel.M
+            });
+        }
+
+        /* =========================================================
+           PEERJS NETWORKING
+        ========================================================= */
+        function initPeer() {
+            setPeerStatus("กำลังเชื่อมต่อ...", false);
+
+            try {
+                peer = new Peer(currentRoom);
+            } catch (error) {
+                console.error("Peer create error:", error);
+                setPeerStatus("สร้างห้องไม่สำเร็จ", false);
+                return;
+            }
+
+            peer.on("open", () => {
+                setPeerStatus("พร้อมใช้งาน", true);
+            });
+
+            peer.on("connection", conn => {
+                connections.push(conn);
+
+                conn.on("open", () => {
+                    setPeerStatus(`มือถือเชื่อมต่อแล้ว (${connections.length})`, true);
+                    syncQueue();
+                });
+
+                conn.on("data", data => {
+                    handleCommand(data);
+                });
+
+                conn.on("close", () => {
+                    connections = connections.filter(c => c !== conn);
+                    if (connections.length === 0) {
+                        setPeerStatus("รอมือถือ", false);
+                    } else {
+                        setPeerStatus(`มือถือเชื่อมต่อแล้ว (${connections.length})`, true);
+                    }
+                });
+
+                conn.on("error", err => console.error("Peer connection error:", err));
+            });
+
+            peer.on("error", error => {
+                console.error("Peer error:", error);
+                setPeerStatus("กำลังเชื่อมต่อใหม่...", false);
+                setTimeout(() => {
+                    try { if (peer) peer.destroy(); } catch (e) {}
+                    initPeer();
+                }, 3000);
+            });
+        }
+
+        function setPeerStatus(text, online) {
+            const statusText = document.getElementById("status-text");
+            const dot = document.getElementById("status-dot");
+            if (statusText) statusText.innerText = text;
+            if (dot) dot.classList.toggle("online", online);
+        }
+
+        /* =========================================================
+           COMMAND ROUTER
+        ========================================================= */
+        function handleCommand(data) {
+            if (!data || !data.type) return;
+
+            switch (data.type) {
+                case "ADD_SONG":
+                    addSongFromController(data.song);
+                    break;
+                case "SKIP":
+                    skipSong();
+                    break;
+                case "TOGGLE_PLAY":
+                    togglePlayFromController(data.isPaused);
+                    break;
+                case "DELETE_SONG":
+                    deleteSong(data.index);
+                    break;
+                case "MOVE_SONG":
+                    moveSong(data.index, data.direction);
+                    break;
+                case "RETRY_PLAY":
+                    retryPlay();
+                    break;
+                default:
+                    console.log("Unknown command:", data.type);
+            }
+        }
+
+        function addSongFromController(song) {
+            if (!song || !song.videoId) return;
+
+            if (queue.some(item => item.videoId === song.videoId)) {
+                syncQueue();
+                return;
+            }
+
+            queue.push(song);
+            syncQueue();
+
+            if (queue.length === 1 && isAppReady && !isTransitioning) {
+                playCurrent();
+            }
+        }
+
+        function syncQueue() {
+            updateQueueUI();
+            // กระจายสถานะคิวไปยังมือถือทุกเครื่องที่เชื่อมต่ออยู่
+            connections.forEach(conn => {
+                if (conn && conn.open) {
+                    try {
+                        conn.send({ type: "QUEUE_UPDATE", queue: queue });
+                    } catch (err) {
+                        console.error("Queue sync error:", err);
+                    }
+                }
+            });
+        }
+
+        /* =========================================================
+           QUEUE UI
+        ========================================================= */
+        function updateQueueUI() {
+            const list = document.getElementById("queue-list");
+            const count = document.getElementById("queue-count");
+            const queueBox = document.getElementById("queue-box");
+            const emptyState = document.getElementById("empty-state");
+            const nowPlaying = document.getElementById("now-playing");
+
+            if (!list) return;
+
+            count.innerText = queue.length;
+            list.innerHTML = "";
+
+            if (queue.length === 0) {
+                queueBox.style.display = "none";
+                nowPlaying.classList.add("hidden");
+                emptyState.style.display = "flex";
+                return;
+            }
+
+            queueBox.style.display = "block";
+            emptyState.style.display = "none";
+
+            const current = queue[0];
+            document.getElementById("now-title").innerText = current.title || "ไม่ทราบชื่อเพลง";
+            document.getElementById("now-channel").innerText = current.channel || "";
+
+            queue.forEach((song, index) => {
+                const item = document.createElement("div");
+                item.className = "queue-item" + (index === 0 ? " playing" : "");
+
+                const thumb = document.createElement("img");
+                thumb.className = "queue-thumb";
+                thumb.src = song.thumbnail || `https://i.ytimg.com/vi/${song.videoId}/mqdefault.jpg`;
+                thumb.onerror = () => { thumb.src = `https://i.ytimg.com/vi/${song.videoId}/hqdefault.jpg`; };
+
+                const info = document.createElement("div");
+                info.className = "queue-info";
+
+                const name = document.createElement("div");
+                name.className = "queue-name";
+                name.innerText = song.title || "ไม่ทราบชื่อเพลง";
+
+                const sub = document.createElement("div");
+                sub.className = "queue-sub";
+                sub.innerText = song.channel || "";
+
+                info.appendChild(name);
+                info.appendChild(sub);
+
+                if (index === 0) {
+                    const badge = document.createElement("div");
+                    badge.className = "playing-badge";
+                    badge.innerText = "▶ กำลังเล่น";
+                    info.appendChild(badge);
+                }
+
+                item.appendChild(thumb);
+                item.appendChild(info);
+                list.appendChild(item);
+            });
+        }
+
+        function deleteSong(index) {
+            if (index < 0 || index >= queue.length) return;
+            const wasCurrent = index === 0;
+            queue.splice(index, 1);
+            syncQueue();
+
+            if (wasCurrent) {
+                if (queue.length > 0) {
+                    playCurrent();
+                } else {
+                    showIdleScreen();
+                }
+            }
+        }
+
+        function moveSong(index, direction) {
+            const target = direction === "up" ? index - 1 : index + 1;
+            if (index <= 0 || target <= 0 || target >= queue.length) return;
+            const temp = queue[index];
+            queue[index] = queue[target];
+            queue[target] = temp;
+            syncQueue();
+        }
+
+        function skipSong() {
+            if (queue.length === 0) {
+                showIdleScreen();
+                return;
+            }
+
+            clearTimeout(nextSongTimer);
+            clearTimeout(nowPlayingTimer);
+            hideScore();
+            stopScoreWatcher();
+
+            isTransitioning = true;
+            queue.shift();
+            syncQueue();
+
+            if (queue.length > 0) {
+                playCurrent();
+            } else {
+                showIdleScreen();
+            }
+
+            setTimeout(() => { isTransitioning = false; }, 1200);
+        }
+
+        function togglePlayFromController(shouldPause) {
+            if (!player || typeof player.getPlayerState !== "function") return;
+            try {
+                if (shouldPause) {
+                    player.pauseVideo();
+                    showUI();
+                } else {
+                    player.playVideo();
+                    scheduleHideUI();
+                }
+            } catch (error) {
+                console.error("Toggle play error:", error);
+            }
+        }
+
+        function retryPlay() {
+            if (!player || queue.length === 0) return;
+            clearTimeout(nextSongTimer);
+            isTransitioning = false;
+            hideScore();
+            try {
+                player.seekTo(0, true);
+                player.playVideo();
+                scheduleHideUI();
+            } catch (error) {
+                console.error("Retry error:", error);
+            }
+        }
+
+        /* =========================================================
+           PLAYBACK & SCORE TRANSITION
+        ========================================================= */
+        function playCurrent() {
+            clearTimeout(nextSongTimer);
+            hideScore();
+            stopScoreWatcher();
+
+            if (queue.length === 0) {
+                showIdleScreen();
+                return;
+            }
+
+            stopBgRotation();
+            const current = queue[0];
+
+            document.getElementById("player-wrapper").style.display = "block";
+            document.getElementById("empty-state").style.display = "none";
+
+            const nowPlaying = document.getElementById("now-playing");
+            clearTimeout(nowPlayingTimer);
+            nowPlaying.classList.remove("hidden");
+            document.getElementById("now-title").innerText = current.title || "ไม่ทราบชื่อเพลง";
+            document.getElementById("now-channel").innerText = current.channel || "";
+
+            nowPlayingTimer = setTimeout(() => {
+                nowPlaying.classList.add("hidden");
+            }, 8000);
+
+            if (player && typeof player.loadVideoById === "function") {
+                try {
+                    player.loadVideoById(current.videoId);
+                    if (typeof player.unMute === "function") player.unMute();
+                    setTimeout(disableYouTubeCaptions, 800);
+                } catch (error) {
+                    console.error("loadVideoById error:", error);
+                }
+            }
+
+            updateQueueUI();
+        }
+
+        function finishCurrentSong() {
+            if (isTransitioning) return;
+            if (queue.length === 0) {
+                showIdleScreen();
+                return;
+            }
+
+            isTransitioning = true;
+            stopScoreWatcher();
+            clearTimeout(nextSongTimer);
+
+            // ซ่อนวิดีโอ YouTube ทันที เพื่อให้คะแนนลอยบนพื้นหลัง Screen Saver
+            document.getElementById("player-wrapper").style.display = "none";
+            startBgRotation();
+
+            queue.shift();
+            syncQueue();
+            showScore();
+
+            nextSongTimer = setTimeout(() => {
+                hideScore();
+                if (queue.length > 0) {
+                    playCurrent();
+                } else {
+                    showIdleScreen();
+                }
+                setTimeout(() => { isTransitioning = false; }, 1000);
+            }, 4000);
+        }
+
+        function showIdleScreen() {
+            clearTimeout(nextSongTimer);
+            stopScoreWatcher();
+            hideScore();
+
+            if (player && typeof player.stopVideo === "function") {
+                try { player.stopVideo(); } catch (e) {}
+            }
+
+            document.getElementById("player-wrapper").style.display = "none";
+            document.getElementById("empty-state").style.display = "flex";
+            clearTimeout(nowPlayingTimer);
+            document.getElementById("now-playing").classList.add("hidden");
+            document.getElementById("queue-box").style.display = "none";
+
+            startBgRotation();
+            showUI();
+            updateQueueUI();
+        }
+
+        /* =========================================================
+           YOUTUBE PLAYER SETUP
+        ========================================================= */
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player("player", {
+                width: "100%",
+                height: "100%",
+                playerVars: {
+                    autoplay: 0,
+                    controls: 0,
+                    disablekb: 1,
+                    fs: 0,
+                    modestbranding: 1,
+                    rel: 0,
+                    iv_load_policy: 3,
+                    cc_load_policy: 0,
+                    playsinline: 1,
+                    enablejsapi: 1,
+                    origin: window.location.origin
+                },
+                events: {
+                    onReady: onPlayerReady,
+                    onStateChange: onPlayerStateChange,
+                    onError: onPlayerError
+                }
+            });
+        }
+
+        function onPlayerReady() {
+            disableYouTubeCaptions();
+            if (isAppReady) {
+                if (queue.length > 0) playCurrent();
+                else showIdleScreen();
+            }
+        }
+
+        function disableYouTubeCaptions() {
+            if (!player) return;
+            try {
+                if (typeof player.unloadModule === "function") player.unloadModule("captions");
+                if (typeof player.setOption === "function") player.setOption("captions", "track", {});
+            } catch (e) {}
+        }
+
+        function onPlayerStateChange(event) {
+            if (!window.YT || !YT.PlayerState) return;
+
+            if (event.data === YT.PlayerState.PLAYING) {
+                disableYouTubeCaptions();
+                scheduleHideUI();
+                startScoreWatcher();
+            } else if (event.data === YT.PlayerState.PAUSED) {
+                showUI();
+                stopScoreWatcher();
+            } else if (event.data === YT.PlayerState.ENDED) {
+                stopScoreWatcher();
+                finishCurrentSong();
+            }
+        }
+
+        function onPlayerError(event) {
+            console.error("YouTube player error:", event.data);
+            if ([2, 5, 100, 101, 150, 153].includes(event.data)) {
+                setTimeout(() => {
+                    if (queue.length > 0 && !isTransitioning) skipSong();
+                }, 2000);
+            }
+        }
+
+        function startScoreWatcher() {
+            stopScoreWatcher();
+            scoreWatcher = setInterval(() => {
+                if (!player || typeof player.getCurrentTime !== "function" || typeof player.getDuration !== "function") return;
+                try {
+                    const current = player.getCurrentTime();
+                    const duration = player.getDuration();
+                    if (duration > 0 && duration - current <= 5 && duration - current > 0) {
+                        showScore();
+                    }
+                } catch (e) {}
+            }, 1000);
+        }
+
+        function stopScoreWatcher() {
+            if (scoreWatcher) {
+                clearInterval(scoreWatcher);
+                scoreWatcher = null;
+            }
+        }
+
+        function showScore() {
+            const overlay = document.getElementById("score-overlay");
+            if (overlay.classList.contains("show")) return;
+
+            const score = Math.floor(80 + Math.random() * 21);
+            const messages = ["สุดยอด! 🔥", "นักร้องตัวจริง! 🎤", "พลังเสียงเป๊ะมาก! 💥", "ระดับมืออาชีพ! ⭐", "คืนนี้มีดาว! 🌟"];
+
+            document.getElementById("score-number").innerText = score;
+            document.getElementById("score-message").innerText = messages[Math.floor(Math.random() * messages.length)];
+            overlay.classList.add("show");
+        }
+
+        function hideScore() {
+            document.getElementById("score-overlay").classList.remove("show");
+        }
+
+        /* =========================================================
+           AUTO HIDE UI & SCREENSAVER
+        ========================================================= */
+        function scheduleHideUI() {
+            clearTimeout(uiTimer);
+            uiTimer = setTimeout(() => hideUI(), 15000);
+        }
+
+        function hideUI() {
+            document.getElementById("top-bar").classList.add("hidden");
+            document.getElementById("now-playing").classList.add("hidden");
+            document.getElementById("queue-box").classList.add("hidden");
+            document.getElementById("qr-panel").classList.add("hidden");
+        }
+
+        function showUI() {
+            clearTimeout(uiTimer);
+            document.getElementById("top-bar").classList.remove("hidden");
+            document.getElementById("queue-box").classList.remove("hidden");
+            document.getElementById("qr-panel").classList.remove("hidden");
+            if (queue.length === 0) {
+                document.getElementById("queue-box").style.display = "none";
+            }
+        }
+
+        document.addEventListener("mousemove", () => {
+            if (isAppReady) { showUI(); scheduleHideUI(); }
+        });
+
+        document.addEventListener("touchstart", () => {
+            if (isAppReady) { showUI(); scheduleHideUI(); }
+        }, { passive: true });
+
+        function setBackground(url) {
+            const next = activeBg === 1 ? document.getElementById("bg2") : document.getElementById("bg1");
+            const current = activeBg === 1 ? document.getElementById("bg1") : document.getElementById("bg2");
+            next.style.backgroundImage = `url("${url}")`;
+            next.classList.add("active");
+            current.classList.remove("active");
+            activeBg = activeBg === 1 ? 2 : 1;
+        }
+
+        function rotateBackground() {
+            if (!backgrounds || backgrounds.length === 0) return;
+            setBackground(backgrounds[bgIndex]);
+            bgIndex = (bgIndex + 1) % backgrounds.length;
+        }
+
+        function startBgRotation() {
+            if (bgTimer) return;
+            rotateBackground();
+            bgTimer = setInterval(rotateBackground, 20000);
+        }
+
+        function stopBgRotation() {
+            if (bgTimer) {
+                clearInterval(bgTimer);
+                bgTimer = null;
+            }
+        }
+
+        /* =========================================================
+           INITIALIZE APP
+        ========================================================= */
+        function initApp() {
+            if (isAppReady) return;
+            isAppReady = true;
+
+            document.getElementById("start-overlay").style.display = "none";
+            initRoom();
+            initPeer();
+            startBgRotation();
+
+            if (player) {
+                if (queue.length > 0) playCurrent();
+                else showIdleScreen();
+            }
+        }
+
+        updateQueueUI();
+        document.getElementById("bg1").style.backgroundImage = `url("${backgrounds[0]}")`;
+
+        document.addEventListener("keydown", event => {
+            if (!isAppReady && (event.key === "Enter" || event.key === " ")) initApp();
+            if (isAppReady && event.key === "Escape") showUI();
+        });
+    </script>
 </body>
 </html>
