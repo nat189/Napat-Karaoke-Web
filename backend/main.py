@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from backend.search import search_youtube_karaoke
@@ -5,15 +6,26 @@ from backend.search import search_youtube_karaoke
 app = FastAPI(title="Napat Karaoke Pro")
 
 # ==========================================
-# Frontend Routes (รองรับทั้ง GET และ HEAD)
+# Frontend Routes
 # ==========================================
 
+# 1. โหมดหน้าจอเดียว (All-in-One: index.html)
+@app.api_route("/index", methods=["GET", "HEAD"])
+@app.api_route("/index.html", methods=["GET", "HEAD"])
+@app.api_route("/single", methods=["GET", "HEAD"])
+def get_index():
+    if os.path.exists("frontend/index.html"):
+        return FileResponse("frontend/index.html")
+    return FileResponse("frontend/display.html")
+
+# 2. โหมด 2 จอ: TV Display
 @app.api_route("/", methods=["GET", "HEAD"])
 @app.api_route("/display", methods=["GET", "HEAD"])
 @app.api_route("/display.html", methods=["GET", "HEAD"])
 def get_display():
     return FileResponse("frontend/display.html")
 
+# 3. โหมด 2 จอ: Remote Controller
 @app.api_route("/remote", methods=["GET", "HEAD"])
 @app.api_route("/controller", methods=["GET", "HEAD"])
 @app.api_route("/controller.html", methods=["GET", "HEAD"])
@@ -31,7 +43,6 @@ def api_search(q: str = ""):
     
     try:
         raw_results = search_youtube_karaoke(q)
-        
         formatted_results = []
         for item in raw_results:
             vid = item.get("videoId") or item.get("id")
