@@ -5,18 +5,18 @@ from backend.search import search_youtube_karaoke
 app = FastAPI(title="Napat Karaoke Pro")
 
 # ==========================================
-# Frontend Routes
+# Frontend Routes (รองรับทั้ง GET และ HEAD)
 # ==========================================
 
-@app.get("/")
-@app.get("/display")
-@app.get("/display.html")
+@app.api_route("/", methods=["GET", "HEAD"])
+@app.api_route("/display", methods=["GET", "HEAD"])
+@app.api_route("/display.html", methods=["GET", "HEAD"])
 def get_display():
     return FileResponse("frontend/display.html")
 
-@app.get("/remote")
-@app.get("/controller")
-@app.get("/controller.html")
+@app.api_route("/remote", methods=["GET", "HEAD"])
+@app.api_route("/controller", methods=["GET", "HEAD"])
+@app.api_route("/controller.html", methods=["GET", "HEAD"])
 def get_controller():
     return FileResponse("frontend/controller.html")
 
@@ -32,7 +32,6 @@ def api_search(q: str = ""):
     try:
         raw_results = search_youtube_karaoke(q)
         
-        # จัดรูปแบบข้อมูลให้ตรงกับที่ controller.html เรียกใช้ (โดยเฉพาะ videoId)
         formatted_results = []
         for item in raw_results:
             vid = item.get("videoId") or item.get("id")
