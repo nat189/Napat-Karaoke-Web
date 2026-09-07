@@ -7,5 +7,10 @@ macOS: brew install ffmpeg
 
 Windows: แนะนำให้ใส่ลิงก์หรือใช้ Dockerfile คุม Environment แทน
 
+cd /mnt/cache/appdata
+
+git clone https://github.com/nat189/Napat-Karaoke-Web.git karaoke-web
+
+cd karaoke-web
 
 docker build -t karaoke-web .
