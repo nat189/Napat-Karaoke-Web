@@ -1,1 +1,22 @@
+version: '3.8'
 
+services:
+  karaoke-app:
+    build: .
+    container_name: karaoke-web
+    restart: unless-stopped
+    ports:
+      - "8080:8000" # Web UI / API
+    volumes:
+      # แนะนำให้แมปไว้บน Cache Pool เพื่อความเร็วในการแปลงไฟล์
+      - /mnt/cache/appdata/karaoke-web/storage:/app/storage
+    environment:
+      - PYTHONUNBUFFERED=1
+    # --- หากต้องการใช้ NVIDIA GPU ให้ปลดคอมเมนต์ 5 บรรทัดด้านล่าง ---
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
