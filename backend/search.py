@@ -3,7 +3,7 @@ import yt_dlp
 def search_youtube_karaoke(query: str, max_results: int = 20):
     # 1. ใช้ Search Operator ตัด MV และระบุคาราโอเกะแบบดนตรี
     # ดึงมาเผื่อ 35 คลิปเพื่อนำมากรองทิ้งให้เหลือ 20 คลิปคุณภาพ
-    search_query = f"ytsearch{max_results + 15}:{query} คาราโอเกะ -MV -\"Official MV\""
+    search_query = f"ytsearch{max_results + 15}:{query} karaoke คาราโอเกะ -MV -\"Official MV\""
     
     ydl_opts = {
         'extract_flat': True,       # ดึงเฉพาะ metadata เพื่อความเร็วสูง
