@@ -1,9 +1,10 @@
-FROM python:3.10-slim
+FROM python:3.11-slim
 
-# ติดตั้ง ffmpeg และ git
+# ติดตั้ง ffmpeg, git และ nodejs (จำเป็นสำหรับ yt-dlp ในการแกะเพลง)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     git \
+    nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
