@@ -1,6 +1,6 @@
 FROM python:3.11-slim
 
-# ติดตั้ง ffmpeg, git และ nodejs (จำเป็นสำหรับ yt-dlp ในการแกะเพลง)
+# ติดตั้ง ffmpeg, git และ nodejs
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     git \
@@ -8,6 +8,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
+
+# บังคับติดตั้ง PyTorch และ TorchAudio แบบ CPU Only (ตัด CUDA/NVIDIA ออกทั้งหมด)
+RUN pip install --no-cache-dir torch torchaudio --index-url https://download.pytorch.org/whl/cpu
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
