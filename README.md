@@ -6,3 +6,6 @@ Ubuntu/Debian: sudo apt install ffmpeg
 macOS: brew install ffmpeg
 
 Windows: แนะนำให้ใส่ลิงก์หรือใช้ Dockerfile คุม Environment แทน
+
+
+docker build -t karaoke-web .
