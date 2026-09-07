@@ -1,1 +1,124 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>Napat Karaoke Pro - TV Display</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #111; color: white; overflow: hidden; height: 100vh; }
+    
+    #standby-screen {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.8)), url('https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?q=80&w=1920&auto=format&fit=crop') center/cover;
+      display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;
+    }
+    .hero-title { font-size: 3.5rem; margin-bottom: 10px; font-weight: bold; }
+    .hero-sub { font-size: 1.5rem; opacity: 0.8; }
 
+    /* กรอบ QR Code มุมขวาล่าง */
+    #qr-container {
+      position: absolute; bottom: 30px; right: 30px; background: rgba(255,255,255,0.95);
+      padding: 15px; border-radius: 12px; color: #111; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+    #qrcode { margin-bottom: 8px; display: flex; justify-content: center; }
+    #qr-container p { font-size: 0.85rem; font-weight: bold; }
+
+    /* Player Container */
+    #player-screen { display: none; width: 100%; height: 100%; position: relative; }
+    iframe { width: 100%; height: 100%; border: none; }
+    
+    /* Overlay แสดงคิวเพลงถัดไปบนจอทีวี */
+    #queue-overlay {
+      position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.7);
+      padding: 10px 20px; border-radius: 8px; font-size: 1.1rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- จอ Standby ก่อนเริ่มเพลง -->
+  <div id="standby-screen">
+    <div style="font-size: 4rem; margin-bottom: 20px;">🎤</div>
+    <div class="hero-title">พร้อมร้องเพลงแล้วหรือยัง?</div>
+    <div class="hero-sub">สแกน QR Code เพื่อค้นหาและจองเพลง</div>
+  </div>
+
+  <!-- จอแสดงผลเมื่อกำลังเล่นวิดีโอ YouTube -->
+  <div id="player-screen">
+    <div id="yt-player"></div>
+    <div id="queue-overlay">คิวถัดไป: <span id="next-song-title">-</span></div>
+  </div>
+
+  <!-- กล่อง QR Code สำหรับจอยห้อง -->
+  <div id="qr-container">
+    <div id="qrcode"></div>
+    <p>📱 สแกนเพื่อเลือกเพลง</p>
+  </div>
+
+  <script>
+    // 1. สร้าง QR Code ตาม URL ของเครื่องจริง
+    const remoteUrl = window.location.origin + '/remote';
+    new QRCode(document.getElementById("qrcode"), {
+      text: remoteUrl,
+      width: 130,
+      height: 130
+    });
+
+    // 2. โหลด YouTube IFrame API
+    let player;
+    let currentVideoId = null;
+
+    const tag = document.createElement('script');
+    tag.src = "https://www.youtube.com/iframe_api";
+    document.head.appendChild(tag);
+
+    function onYouTubeIframeAPIReady() {
+      player = new YT.Player('yt-player', {
+        height: '100%',
+        width: '100%',
+        playerVars: { 'autoplay': 1, 'controls': 1, 'rel': 0 },
+        events: { 'onStateChange': onPlayerStateChange }
+      });
+    }
+
+    function onPlayerStateChange(event) {
+      // เมื่อเพลงเล่นจบ (State = 0) สั่งให้ข้ามไปเพลงถัดไปอัตโนมัติ
+      if (event.data === YT.PlayerState.ENDED) {
+        fetch('/api/next', { method: 'POST' });
+      }
+    }
+
+    // 3. เชื่อมต่อ WebSocket รับคิวเพลง
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws`);
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      const standby = document.getElementById('standby-screen');
+      const playerScreen = document.getElementById('player-screen');
+
+      if (data.current) {
+        standby.style.display = 'none';
+        playerScreen.style.display = 'block';
+
+        if (currentVideoId !== data.current.id) {
+          currentVideoId = data.current.id;
+          if (player && player.loadVideoById) {
+            player.loadVideoById(currentVideoId);
+          }
+        }
+      } else {
+        standby.style.display = 'flex';
+        playerScreen.style.display = 'none';
+        currentVideoId = null;
+        if (player && player.stopVideo) player.stopVideo();
+      }
+
+      // แสดงชื่อเพลงถัดไป
+      const nextTitle = data.queue.length > 0 ? data.queue[0].title : 'ไม่มีเพลงในคิว';
+      document.getElementById('next-song-title').innerText = nextTitle;
+    };
+  </script>
+</body>
+</html>
