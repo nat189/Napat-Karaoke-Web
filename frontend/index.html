@@ -1,1 +1,62 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>Home Karaoke</title>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; }
+    input[type="text"] { width: 70%; padding: 8px; }
+    button { padding: 8px 16px; cursor: pointer; }
+    #status { margin: 20px 0; font-weight: bold; }
+    audio { width: 100%; margin-top: 15px; }
+  </style>
+</head>
+<body>
+  <h2>🎤 Home Karaoke Player</h2>
+  <div>
+    <input type="text" id="ytUrl" placeholder="วางลิงก์ YouTube ที่นี่...">
+    <button onclick="submitSong()">โหลดเพลง</button>
+  </div>
+  
+  <div id="status"></div>
+  <audio id="player" controls style="display:none;"></audio>
 
+  <script>
+    let checkInterval = null;
+
+    async function submitSong() {
+      const url = document.getElementById('ytUrl').value;
+      if (!url) return;
+
+      document.getElementById('status').innerText = "กำลังส่งคำขอเข้าคิว...";
+      await fetch('/api/queue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
+
+      if (checkInterval) clearInterval(checkInterval);
+      checkInterval = setInterval(() => checkStatus(url), 3000);
+    }
+
+    async function checkStatus(url) {
+      const res = await fetch(`/api/status?url=${encodeURIComponent(url)}`);
+      const data = await res.json();
+      
+      const statusDiv = document.getElementById('status');
+      statusDiv.innerText = `สถานะ: ${data.status} ${data.title ? `(${data.title})` : ''}`;
+
+      if (data.status === 'ready') {
+        clearInterval(checkInterval);
+        const player = document.getElementById('player');
+        player.src = data.stream_url;
+        player.style.display = 'block';
+        player.play();
+      } else if (data.status === 'error') {
+        clearInterval(checkInterval);
+        statusDiv.innerText = `เกิดข้อผิดพลาด: ${data.message}`;
+      }
+    }
+  </script>
+</body>
+</html>
