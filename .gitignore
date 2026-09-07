@@ -1,1 +1,15 @@
+# Virtual environment
+venv/
+__pycache__/
+*.pyc
 
+# Storage & Cache
+storage/raw/*
+storage/processed/*
+!storage/raw/.gitkeep
+!storage/processed/.gitkeep
+
+# Demucs models weight
+pretrained/
+models/
+.env
