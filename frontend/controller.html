@@ -534,14 +534,18 @@
 <div id="toast"></div>
 
 <script>
+    /* STATE */
     let peer = null;
     let conn = null;
     let roomId = "";
     let currentQueue = [];
     let isPaused = false;
     let reconnectTimer = null;
+    let heartbeatTimer = null;
+    let pendingActions = [];
     let toastTimer = null;
 
+    /* ROOM */
     function getRoom() {
         const params = new URLSearchParams(window.location.search);
         const urlRoom = params.get("room") || params.get("r");
@@ -556,24 +560,36 @@
         document.getElementById("room-code").innerText = roomId || "ไม่พบ Room";
     }
 
+    /* PEERJS NETWORKING */
     function initPeer() {
         if (!roomId) {
             setConnection("ไม่พบ Room", false);
             return;
         }
 
-        setConnection("กำลังเชื่อมต่อ", false);
+        setConnection("กำลังเชื่อมต่อ...", false);
 
         try {
+            if (peer && !peer.destroyed) {
+                peer.destroy();
+            }
             peer = new Peer();
         } catch (error) {
-            console.error(error);
+            console.error("PeerJS init error:", error);
             setConnection("PeerJS ผิดพลาด", false);
             return;
         }
 
         peer.on("open", () => {
             connectToTV();
+        });
+
+        peer.on("disconnected", () => {
+            console.warn("Peer disconnected from broker. Reconnecting...");
+            setConnection("ต่อเซิร์ฟเวอร์ใหม่...", false);
+            if (peer && !peer.destroyed) {
+                peer.reconnect();
+            }
         });
 
         peer.on("error", error => {
@@ -584,32 +600,74 @@
     }
 
     function connectToTV() {
-        if (!peer || !roomId) return;
+        if (!peer || peer.destroyed || !roomId) return;
 
-        if (conn) {
-            try { conn.close(); } catch {}
+        if (peer.disconnected) {
+            peer.reconnect();
         }
 
-        setConnection("กำลังเชื่อมต่อ TV", false);
-        conn = peer.connect(roomId, { reliable: true });
+        if (conn) {
+            try { conn.close(); } catch (e) {}
+        }
+
+        setConnection("กำลังต่อ TV...", false);
+
+        try {
+            conn = peer.connect(roomId, { reliable: true });
+        } catch (err) {
+            console.error("Connection attempt error:", err);
+            scheduleReconnect();
+            return;
+        }
 
         conn.on("open", () => {
+            console.log("Connected to TV:", roomId);
             setConnection("เชื่อมต่อแล้ว", true);
             showToast("🟢 เชื่อมต่อ TV แล้ว");
+            startHeartbeat();
+            flushPendingActions();
         });
 
         conn.on("data", handleData);
 
         conn.on("close", () => {
-            setConnection("TV หลุดการเชื่อมต่อ", false);
+            console.warn("TV connection closed");
+            stopHeartbeat();
+            setConnection("TV หลุด กำลังต่อใหม่...", false);
             scheduleReconnect();
         });
 
         conn.on("error", error => {
             console.error("Connection error:", error);
+            stopHeartbeat();
             setConnection("เชื่อมต่อไม่สำเร็จ", false);
             scheduleReconnect();
         });
+    }
+
+    /* HEARTBEAT KEEP-ALIVE */
+    function startHeartbeat() {
+        stopHeartbeat();
+        heartbeatTimer = setInterval(() => {
+            if (conn && conn.open) {
+                try {
+                    conn.send({ type: "PING" });
+                } catch (e) {
+                    stopHeartbeat();
+                    connectToTV();
+                }
+            } else {
+                stopHeartbeat();
+                scheduleReconnect();
+            }
+        }, 3500);
+    }
+
+    function stopHeartbeat() {
+        if (heartbeatTimer) {
+            clearInterval(heartbeatTimer);
+            heartbeatTimer = null;
+        }
     }
 
     function scheduleReconnect() {
@@ -621,9 +679,25 @@
             } else {
                 initPeer();
             }
-        }, 3000);
+        }, 2000);
     }
 
+    /* PAGE VISIBILITY (สลับแอป/ปลดล็อกหน้าจอแล้วต่อทันที) */
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") {
+            if (!conn || !conn.open) {
+                connectToTV();
+            } else {
+                try {
+                    conn.send({ type: "PING" });
+                } catch (e) {
+                    connectToTV();
+                }
+            }
+        }
+    });
+
+    /* RECEIVE DATA */
     function handleData(data) {
         if (!data || !data.type) return;
 
@@ -633,29 +707,46 @@
         }
     }
 
+    /* SEND ACTION (พร้อมระบบคิวส่งซ้ำอัตโนมัติเมื่อเน็ตสะดุด) */
     function sendAction(type, payload = {}) {
-        if (!conn || !conn.open) {
-            showToast("🔴 ยังไม่ได้เชื่อมต่อ TV");
-            return false;
+        const action = { type, ...payload };
+
+        if (conn && conn.open) {
+            try {
+                conn.send(action);
+                return true;
+            } catch (error) {
+                console.error("sendAction error:", error);
+            }
         }
 
-        try {
-            conn.send({ type, ...payload });
-            return true;
-        } catch (error) {
-            console.error(error);
-            showToast("ส่งคำสั่งไม่สำเร็จ");
-            return false;
+        pendingActions.push(action);
+        setConnection("กำลังส่งคำสั่ง...", false);
+        showToast("🟡 กำลังเชื่อมต่อ TV ใหม่...");
+        connectToTV();
+        return false;
+    }
+
+    function flushPendingActions() {
+        if (!conn || !conn.open || pendingActions.length === 0) return;
+        while (pendingActions.length > 0) {
+            const action = pendingActions.shift();
+            try {
+                conn.send(action);
+                if (action.type === "ADD_SONG") {
+                    showToast("🎵 เพิ่มเพลงเข้าคิวแล้ว");
+                }
+            } catch (e) {
+                pendingActions.unshift(action);
+                break;
+            }
         }
     }
 
+    /* CONTROLS */
     function togglePlay() {
         isPaused = !isPaused;
-        const success = sendAction("TOGGLE_PLAY", { isPaused });
-        if (!success) {
-            isPaused = !isPaused;
-            return;
-        }
+        sendAction("TOGGLE_PLAY", { isPaused });
         updatePauseButton();
     }
 
@@ -664,6 +755,7 @@
         button.innerText = isPaused ? "▶️ เล่นต่อ" : "⏸️ หยุดชั่วคราว";
     }
 
+    /* SEARCH MUSIC */
     async function searchMusic() {
         const input = document.getElementById("search-input");
         const q = input.value.trim();
@@ -767,6 +859,7 @@
         }
     }
 
+    /* QUEUE RENDER */
     function renderQueue() {
         const list = document.getElementById("queue-list");
         const count = document.getElementById("queue-count");
@@ -824,6 +917,7 @@
         showToast("🔄 เริ่มเพลงใหม่");
     }
 
+    /* CONNECTION UI */
     function setConnection(text, online) {
         const box = document.getElementById("connection");
         const label = document.getElementById("connection-text");
@@ -832,6 +926,7 @@
         else box.classList.remove("online");
     }
 
+    /* TOAST */
     function showToast(message) {
         const toast = document.getElementById("toast");
         toast.innerText = message;
@@ -854,6 +949,7 @@
         if (event.key === "Enter") searchMusic();
     });
 
+    /* INIT */
     getRoom();
     initPeer();
     renderQueue();
