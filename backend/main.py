@@ -9,7 +9,7 @@ from backend.search import search_youtube_karaoke
 app = FastAPI(title="Napat Karaoke Pro")
 
 # ==========================================
-# เปิดใช้งาน CORS (สำคัญมาก เพื่อให้ TV/Tablet ข้ามโดเมนมาดึงสตรีมได้)
+# เปิดใช้งาน CORS (ให้ TV/Tablet ข้ามโดเมนมาดึงสตรีมได้)
 # ==========================================
 app.add_middleware(
     CORSMiddleware,
@@ -83,20 +83,17 @@ def api_search(q: str = ""):
 @app.get("/api/stream")
 def api_stream(id: str = "", play: bool = False, request: Request = None):
     """
-    รองรับ 2 รูปแบบ:
     1. เรียกผ่าน fetch: คืนค่า JSON { success: true, url: '...' }
-    2. เรียกจากแท็ก <video> (play=True): ส่งท่อสตรีมวิดีโอ MP4 ให้เล่นสดทันที
+    2. เรียกจากแท็ก <video> (play=True): ส่งท่อสตรีมวิดีโอให้เล่นสดทันที
     """
     if not id.strip():
         return {"success": False, "error": "Missing video ID"}
 
-    # ตรวจสอบว่าเป็นการขอไฟล์วิดีโอตรงหรือไม่ (มี play=true หรือแท็ก video ร้องขอ Range)
     is_video_request = play or (request and ("video" in request.headers.get("accept", "") or "range" in request.headers))
 
     if is_video_request:
         return stream_video_content(id)
 
-    # ส่ง URL สตรีมกลับไปให้ frontend
     base_url = str(request.base_url).rstrip("/") if request else "https://render.oke.dpdns.org"
     stream_url = f"{base_url}/api/stream?id={id}&play=true"
     
@@ -108,15 +105,21 @@ def api_stream(id: str = "", play: bool = False, request: Request = None):
 def stream_video_content(video_id: str):
     """ดึง URL ตรงจาก yt-dlp แล้วทำตัวเป็น Proxy ส่งท่อสตรีมไปให้แท็บเล็ต/ทีวี"""
     ydl_opts = {
-        # เลือกไฟล์ MP4 ที่มีทั้งภาพและเสียงรวมกัน (format 18 คือ 360p หรือ best mp4)
-        "format": "18/22/best[ext=mp4]/best",
+        # บังคับดึงผ่าน client iOS / Android เพื่อเอาไฟล์แบบรวมภาพ+เสียง (Progressive stream)
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["ios", "android", "mweb"]
+            }
+        },
+        # ดึงไฟล์รวมภาพ+เสียงที่ดีที่สุด
+        "format": "best[vcodec!=none][acodec!=none]/b/18/22/best",
         "quiet": True,
         "no_warnings": True,
         "skip_download": True,
         "ignoreerrors": False,
     }
 
-    # ตรวจจับ cookies.txt อัตโนมัติ (หากมี) เพื่อกันโดน YouTube บล็อก Bot
+    # ตรวจจับ cookies.txt อัตโนมัติ (หากมี) เพื่อกันตรวจจับ Bot
     cookie_path = "cookies.txt" if os.path.exists("cookies.txt") else ("backend/cookies.txt" if os.path.exists("backend/cookies.txt") else None)
     if cookie_path:
         ydl_opts["cookiefile"] = cookie_path
@@ -134,26 +137,29 @@ def stream_video_content(video_id: str):
             if not video_url:
                 raise HTTPException(status_code=500, detail="Cannot extract video stream URL")
 
-            # ใช้ headers ชุดเดียวกับที่ yt-dlp เจรจากับ YouTube เพื่อป้องกัน Error 403 Forbidden
+            # ตรวจสอบประเภทไฟล์อัตโนมัติ (mp4 / webm)
+            ext = info.get("ext", "mp4")
+            mime_type = f"video/{ext}"
+
             headers = info.get("http_headers", {})
             if "User-Agent" not in headers:
-                headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                headers["User-Agent"] = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
 
             def iterfile():
                 req = urllib.request.Request(video_url, headers=headers)
-                with urllib.request.urlopen(req, timeout=15) as response:
+                with urllib.request.urlopen(req, timeout=20) as response:
                     while True:
-                        chunk = response.read(64 * 1024)  # อ่านทีละ 64KB
+                        chunk = response.read(64 * 1024)
                         if not chunk:
                             break
                         yield chunk
 
             return StreamingResponse(
                 iterfile(),
-                media_type="video/mp4",
+                media_type=mime_type,
                 headers={
                     "Accept-Ranges": "bytes",
-                    "Content-Type": "video/mp4",
+                    "Content-Type": mime_type,
                     "Cache-Control": "no-cache",
                 }
             )
