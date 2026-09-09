@@ -1,4 +1,5 @@
 import os
+import tempfile
 import urllib.request
 import urllib.error
 import yt_dlp
@@ -9,6 +10,9 @@ from backend.search import search_youtube_karaoke
 
 app = FastAPI(title="Napat Karaoke Pro")
 
+# ==========================================
+# CORS Middleware
+# ==========================================
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -72,7 +76,7 @@ def api_search(q: str = ""):
         return {"success": False, "error": str(e), "results": []}
 
 # ==========================================
-# API Stream Proxy (รองรับ HTTP 206 Range สำหรับ Sing King)
+# API Stream Proxy
 # ==========================================
 
 @app.get("/api/stream")
@@ -80,7 +84,6 @@ def api_stream(id: str = "", play: bool = False, request: Request = None):
     if not id.strip():
         return {"success": False, "error": "Missing video ID"}
 
-    # ถ้ามีพารามิเตอร์ play=true หรือ client ส่ง header Range เข้ามา ให้ส่งสตรีมวิดีโอทันที
     range_header = request.headers.get("range") if request else None
     if play or range_header:
         return stream_video_content(id, request)
@@ -91,14 +94,29 @@ def api_stream(id: str = "", play: bool = False, request: Request = None):
         "url": f"{base_url}/api/stream?id={id}&play=true"
     }
 
+def get_cookie_file_path():
+    """จัดการไฟล์คุกกี้จาก Environment Variable หรือไฟล์ในโฟลเดอร์"""
+    cookie_env = os.environ.get("YOUTUBE_COOKIES", "").strip()
+    if cookie_env:
+        temp_dir = tempfile.gettempdir()
+        cookie_path = os.path.join(temp_dir, "yt_cookies.txt")
+        with open(cookie_path, "w", encoding="utf-8") as f:
+            f.write(cookie_env)
+        return cookie_path
+
+    if os.path.exists("cookies.txt"):
+        return "cookies.txt"
+    if os.path.exists("backend/cookies.txt"):
+        return "backend/cookies.txt"
+    return None
+
 def stream_video_content(video_id: str, request: Request):
     ydl_opts = {
         "extractor_args": {
             "youtube": {
-                "player_client": ["android", "ios", "mweb"]
+                "player_client": ["ios", "mweb"]
             }
         },
-        # ดึงไฟล์ที่มีทั้งภาพและเสียงรวมกัน (Progressive MP4 360p/720p)
         "format": "18/22/best[ext=mp4]/best",
         "quiet": True,
         "no_warnings": True,
@@ -106,9 +124,9 @@ def stream_video_content(video_id: str, request: Request):
         "ignoreerrors": False,
     }
 
-    cookie_path = "cookies.txt" if os.path.exists("cookies.txt") else ("backend/cookies.txt" if os.path.exists("backend/cookies.txt") else None)
-    if cookie_path:
-        ydl_opts["cookiefile"] = cookie_path
+    cookie_file = get_cookie_file_path()
+    if cookie_file:
+        ydl_opts["cookiefile"] = cookie_file
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -126,10 +144,9 @@ def stream_video_content(video_id: str, request: Request):
             ext = info.get("ext", "mp4")
             mime_type = f"video/{ext}"
 
-            # ดึง headers ที่จำเป็นจาก yt-dlp เพื่อ bypass การล็อกของ YouTube
             headers = dict(info.get("http_headers", {}))
             
-            # ส่งต่อ Range Header จากเบราว์เซอร์ไปยัง YouTube (แก้ปัญหาหมุนติ้วๆ)
+            # รองรับ Range Header จากแท็บเล็ต/ทีวี
             client_range = request.headers.get("range") if request else None
             if client_range:
                 headers["Range"] = client_range
@@ -139,9 +156,9 @@ def stream_video_content(video_id: str, request: Request):
             try:
                 response = urllib.request.urlopen(req, timeout=25)
             except urllib.error.HTTPError as err:
-                raise HTTPException(status_code=err.code, detail=f"YouTube stream error: {err.reason}")
+                raise HTTPException(status_code=err.code, detail=f"YouTube upstream error: {err.reason}")
 
-            status_code = response.status # 206 Partial Content หรือ 200 OK
+            status_code = response.status
             content_range = response.headers.get("Content-Range")
             content_length = response.headers.get("Content-Length")
 
@@ -158,7 +175,7 @@ def stream_video_content(video_id: str, request: Request):
             def iterfile():
                 try:
                     while True:
-                        chunk = response.read(128 * 1024) # อ่านส่งทีละ 128KB
+                        chunk = response.read(128 * 1024)
                         if not chunk:
                             break
                         yield chunk
