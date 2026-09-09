@@ -144,7 +144,7 @@
         }
 
         /* =========================================================
-           PLAYER
+           PLAYER & STREAM WRAPPER
         ========================================================= */
         #player-wrapper {
             position: absolute;
@@ -164,6 +164,17 @@
         #player iframe {
             width: 100% !important;
             height: 100% !important;
+            border: none;
+        }
+
+        #direct-stream-player {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: none;
+            background: #000;
         }
 
         /* =========================================================
@@ -557,7 +568,10 @@
 
     <div id="app">
         <div id="player-wrapper">
+            <!-- YouTube IFrame Player สำหรับเพลงทั่วไป -->
             <div id="player"></div>
+            <!-- HTML5 Video Player สำหรับ Sing King / สตรีมผ่าน unRAID -->
+            <video id="direct-stream-player" playsinline autoplay></video>
         </div>
 
         <div id="top-bar">
@@ -629,13 +643,17 @@
 
     <script>
         /* =========================================================
-           STATE
+           STATE & CONFIG
         ========================================================= */
+        const STREAM_API_URL = "/api/stream"; // ชี้ไปที่ Backend unRAID
+
         let peer = null;
-        let connections = []; // รองรับรีโมทหลายเครื่องพร้อมกัน
+        let connections = [];
         let currentRoom = "";
         let queue = [];
         let player = null;
+        let directPlayer = null;
+        let isDirectMode = false;
         let isAppReady = false;
         let isTransitioning = false;
         let nextSongTimer = null;
@@ -679,7 +697,6 @@
             const qr = document.getElementById("qrcode");
             qr.innerHTML = "";
             
-            // ลิงก์ไปยัง controller.html
             const targetUrl = `${window.location.origin}/controller.html?room=${encodeURIComponent(currentRoom)}`;
             new QRCode(qr, {
                 text: targetUrl,
@@ -921,6 +938,17 @@
         }
 
         function togglePlayFromController(shouldPause) {
+            if (isDirectMode && directPlayer) {
+                if (shouldPause) {
+                    directPlayer.pause();
+                    showUI();
+                } else {
+                    directPlayer.play();
+                    scheduleHideUI();
+                }
+                return;
+            }
+
             if (!player || typeof player.getPlayerState !== "function") return;
             try {
                 if (shouldPause) {
@@ -936,23 +964,23 @@
         }
 
         function retryPlay() {
-            if (!player || queue.length === 0) return;
+            if (queue.length === 0) return;
             clearTimeout(nextSongTimer);
             isTransitioning = false;
             hideScore();
-            try {
-                player.seekTo(0, true);
-                if (typeof player.setPlaybackQuality === "function") player.setPlaybackQuality("hd1080");
-                player.playVideo();
-                scheduleHideUI();
-            } catch (error) {
-                console.error("Retry error:", error);
-            }
+            playCurrent();
         }
 
         /* =========================================================
-           PLAYBACK & SCORE TRANSITION (ENFORCED 1080p)
+           DUAL PLAYBACK ENGINE (YOUTUBE IFRAME + UNRAID STREAM)
         ========================================================= */
+        function isSingKingChannel(song) {
+            if (!song) return false;
+            const title = (song.title || "").toLowerCase();
+            const channel = (song.channel || "").toLowerCase();
+            return channel.includes("sing king") || title.includes("sing king");
+        }
+
         function playCurrent() {
             clearTimeout(nextSongTimer);
             hideScore();
@@ -979,37 +1007,85 @@
                 nowPlaying.classList.add("hidden");
             }, 8000);
 
+            // ตรวจสอบว่าเป็น Sing King หรือไม่
+            if (isSingKingChannel(current)) {
+                playWithDirectStream(current.videoId);
+            } else {
+                playWithYouTubeIframe(current.videoId);
+            }
+
+            updateQueueUI();
+        }
+
+        function playWithYouTubeIframe(videoId) {
+            isDirectMode = false;
+            if (directPlayer) {
+                directPlayer.pause();
+                directPlayer.style.display = "none";
+                directPlayer.src = "";
+            }
+            document.getElementById("player").style.display = "block";
+
             if (player && typeof player.loadVideoById === "function") {
                 try {
-                    // 1. ส่งค่าอ็อบเจกต์ระบุ suggestedQuality เป็น hd1080
                     player.loadVideoById({
-                        videoId: current.videoId,
+                        videoId: videoId,
                         suggestedQuality: "hd1080"
                     });
-
-                    // 2. ปลดล็อกเสียงอัตโนมัติ
                     if (typeof player.unMute === "function") player.unMute();
-
-                    // 3. กำชับให้เล่นที่ความละเอียด 1080p
-                    if (typeof player.setPlaybackQuality === "function") {
-                        player.setPlaybackQuality("hd1080");
-                    }
+                    if (typeof player.setPlaybackQuality === "function") player.setPlaybackQuality("hd1080");
 
                     setTimeout(disableYouTubeCaptions, 800);
-
-                    // 4. ตั้งเวลากำชับ 1080p อีกรอบหลังจากวิดีโอบัฟเฟอร์เรียบร้อย
                     setTimeout(() => {
                         if (player && typeof player.setPlaybackQuality === "function") {
                             player.setPlaybackQuality("hd1080");
                         }
                     }, 1500);
-
                 } catch (error) {
                     console.error("loadVideoById error:", error);
                 }
             }
+        }
 
-            updateQueueUI();
+        function playWithDirectStream(videoId) {
+            isDirectMode = true;
+            if (player && typeof player.stopVideo === "function") {
+                try { player.stopVideo(); } catch (e) {}
+            }
+            document.getElementById("player").style.display = "none";
+
+            if (!directPlayer) {
+                directPlayer = document.getElementById("direct-stream-player");
+                initDirectPlayerEvents();
+            }
+
+            directPlayer.style.display = "block";
+            directPlayer.src = `${STREAM_API_URL}?id=${videoId}&play=1`;
+            directPlayer.currentTime = 0;
+
+            directPlayer.play().catch(e => {
+                console.warn("Direct stream autoplay blocked, retrying muted:", e);
+                directPlayer.muted = true;
+                directPlayer.play().then(() => { directPlayer.muted = false; });
+            });
+
+            scheduleHideUI();
+            startScoreWatcher();
+        }
+
+        function initDirectPlayerEvents() {
+            directPlayer.addEventListener("ended", () => {
+                stopScoreWatcher();
+                finishCurrentSong();
+            });
+
+            directPlayer.addEventListener("error", (e) => {
+                console.error("Direct player stream error:", e);
+                // หากดึงสตรีมล้มเหลว ให้ข้ามเพลงไปเพลงถัดไป
+                setTimeout(() => {
+                    if (queue.length > 0 && !isTransitioning) skipSong();
+                }, 2000);
+            });
         }
 
         function finishCurrentSong() {
@@ -1023,8 +1099,12 @@
             stopScoreWatcher();
             clearTimeout(nextSongTimer);
 
-            // ซ่อนวิดีโอ YouTube ทันที เพื่อให้คะแนนลอยบนพื้นหลัง Screen Saver
             document.getElementById("player-wrapper").style.display = "none";
+            if (directPlayer) {
+                directPlayer.pause();
+                directPlayer.src = "";
+                directPlayer.style.display = "none";
+            }
             startBgRotation();
 
             queue.shift();
@@ -1049,6 +1129,11 @@
 
             if (player && typeof player.stopVideo === "function") {
                 try { player.stopVideo(); } catch (e) {}
+            }
+            if (directPlayer) {
+                directPlayer.pause();
+                directPlayer.src = "";
+                directPlayer.style.display = "none";
             }
 
             document.getElementById("player-wrapper").style.display = "none";
@@ -1080,7 +1165,7 @@
                     cc_load_policy: 0,
                     playsinline: 1,
                     enablejsapi: 1,
-                    vq: "hd1080", // Hint ตั้งต้นให้ YouTube พยายามเริ่มที่ 1080p
+                    vq: "hd1080",
                     origin: window.location.origin
                 },
                 events: {
@@ -1108,13 +1193,12 @@
         }
 
         function onPlayerStateChange(event) {
-            if (!window.YT || !YT.PlayerState) return;
+            if (!window.YT || !YT.PlayerState || isDirectMode) return;
 
             if (event.data === YT.PlayerState.PLAYING) {
                 disableYouTubeCaptions();
                 scheduleHideUI();
                 startScoreWatcher();
-                // บังคับความละเอียด 1080p ทันทีที่เข้าสถานะกำลังเล่น
                 if (player && typeof player.setPlaybackQuality === "function") {
                     player.setPlaybackQuality("hd1080");
                 }
@@ -1129,7 +1213,14 @@
 
         function onPlayerError(event) {
             console.error("YouTube player error:", event.data);
-            if ([2, 5, 100, 101, 150, 153].includes(event.data)) {
+            // กรณีเจอ Error 150 (ฝังวิดีโอไม่ได้) บนเพลงที่ไม่ได้กรองชื่อ Sing King ให้สลับมาใช้ direct stream ทันที
+            if ([101, 150, 153].includes(event.data) && queue.length > 0) {
+                console.log("Error 150 detected, fallback to direct unRAID stream...");
+                playWithDirectStream(queue[0].videoId);
+                return;
+            }
+
+            if ([2, 5, 100].includes(event.data)) {
                 setTimeout(() => {
                     if (queue.length > 0 && !isTransitioning) skipSong();
                 }, 2000);
@@ -1139,14 +1230,22 @@
         function startScoreWatcher() {
             stopScoreWatcher();
             scoreWatcher = setInterval(() => {
-                if (!player || typeof player.getCurrentTime !== "function" || typeof player.getDuration !== "function") return;
-                try {
-                    const current = player.getCurrentTime();
-                    const duration = player.getDuration();
-                    if (duration > 0 && duration - current <= 5 && duration - current > 0) {
-                        showScore();
-                    }
-                } catch (e) {}
+                let current = 0;
+                let duration = 0;
+
+                if (isDirectMode && directPlayer) {
+                    current = directPlayer.currentTime || 0;
+                    duration = directPlayer.duration || 0;
+                } else if (player && typeof player.getCurrentTime === "function" && typeof player.getDuration === "function") {
+                    try {
+                        current = player.getCurrentTime();
+                        duration = player.getDuration();
+                    } catch (e) {}
+                }
+
+                if (duration > 0 && duration - current <= 5 && duration - current > 0) {
+                    showScore();
+                }
             }, 1000);
         }
 
@@ -1245,6 +1344,9 @@
             initRoom();
             initPeer();
             startBgRotation();
+
+            directPlayer = document.getElementById("direct-stream-player");
+            if (directPlayer) initDirectPlayerEvents();
 
             if (player) {
                 if (queue.length > 0) playCurrent();
