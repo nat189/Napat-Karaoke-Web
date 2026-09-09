@@ -81,14 +81,9 @@ def api_search(q: str = ""):
 
 @app.get("/api/stream")
 def api_stream(id: str = "", play: str = "", request: Request = None):
-    """
-    แก้พารามิเตอร์ play เป็น str เพื่อให้รองรับทั้ง true, 1, yes
-    และป้องกัน FastAPI / Pydantic แจ้งเตือน Error bool_parsing
-    """
     if not id.strip():
         return {"success": False, "error": "Missing video ID"}
 
-    # ตรวจจับว่าผู้ใช้ต้องการสตรีมตรงหรือไม่
     is_play = str(play).lower() in ["true", "1", "yes"]
     range_header = request.headers.get("range") if request else None
 
@@ -98,11 +93,10 @@ def api_stream(id: str = "", play: str = "", request: Request = None):
     base_url = str(request.base_url).rstrip("/") if request else ""
     return {
         "success": True,
-        "url": f"{base_url}/api/stream?id={id}&play=true"
+        "url": f"{base_url}/api/stream?id={id}&play=1"
     }
 
 def get_cookie_file_path():
-    """จัดการไฟล์คุกกี้จาก Environment Variable หรือไฟล์ในโฟลเดอร์"""
     cookie_env = os.environ.get("YOUTUBE_COOKIES", "").strip()
     if cookie_env:
         temp_dir = tempfile.gettempdir()
@@ -121,10 +115,11 @@ def stream_video_content(video_id: str, request: Request):
     ydl_opts = {
         "extractor_args": {
             "youtube": {
-                "player_client": ["ios", "mweb"]
+                "player_client": ["android", "web"]
             }
         },
-        "format": "18/22/best[ext=mp4]/best",
+        # ปรับฟอร์แมตให้รับทั้ง Progressive และ Combined Stream ทุกนามสกุล
+        "format": "best[vcodec!=none][acodec!=none]/b/18/22/best",
         "quiet": True,
         "no_warnings": True,
         "skip_download": True,
@@ -153,7 +148,6 @@ def stream_video_content(video_id: str, request: Request):
 
             headers = dict(info.get("http_headers", {}))
             
-            # รองรับ Range Header จากแท็บเล็ต/ทีวี
             client_range = request.headers.get("range") if request else None
             if client_range:
                 headers["Range"] = client_range
