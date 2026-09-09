@@ -80,15 +80,22 @@ def api_search(q: str = ""):
 # ==========================================
 
 @app.get("/api/stream")
-def api_stream(id: str = "", play: bool = False, request: Request = None):
+def api_stream(id: str = "", play: str = "", request: Request = None):
+    """
+    แก้พารามิเตอร์ play เป็น str เพื่อให้รองรับทั้ง true, 1, yes
+    และป้องกัน FastAPI / Pydantic แจ้งเตือน Error bool_parsing
+    """
     if not id.strip():
         return {"success": False, "error": "Missing video ID"}
 
+    # ตรวจจับว่าผู้ใช้ต้องการสตรีมตรงหรือไม่
+    is_play = str(play).lower() in ["true", "1", "yes"]
     range_header = request.headers.get("range") if request else None
-    if play or range_header:
+
+    if is_play or range_header:
         return stream_video_content(id, request)
 
-    base_url = str(request.base_url).rstrip("/") if request else "https://render.oke.dpdns.org"
+    base_url = str(request.base_url).rstrip("/") if request else ""
     return {
         "success": True,
         "url": f"{base_url}/api/stream?id={id}&play=true"
