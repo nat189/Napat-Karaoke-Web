@@ -68,7 +68,13 @@
             align-items: center;
             justify-content: space-between;
             z-index: 20;
-            transition: opacity 0.5s ease;
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+
+        #top-bar.hidden {
+            opacity: 0;
+            transform: translateY(-15px);
+            pointer-events: none;
         }
 
         .brand { display: flex; align-items: center; gap: 12px; }
@@ -131,7 +137,7 @@
             object-fit: contain;
         }
 
-        /* NOW PLAYING (แสดงช่วงต้นเพลง) */
+        /* NOW PLAYING */
         #now-playing {
             position: absolute;
             left: 28px;
@@ -163,7 +169,7 @@
         #now-title { font-size: 20px; font-weight: 800; line-height: 1.3; }
         #now-channel { margin-top: 4px; font-size: 12px; color: rgba(255, 255, 255, 0.65); }
 
-        /* QUEUE (คงอยู่ถาวร) */
+        /* QUEUE BOX (ซ่อน/แสดงได้) */
         #queue-box {
             position: absolute;
             left: 28px;
@@ -177,6 +183,13 @@
             backdrop-filter: blur(20px);
             z-index: 15;
             display: none;
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+
+        #queue-box.hidden {
+            opacity: 0;
+            transform: translateY(15px);
+            pointer-events: none;
         }
 
         .queue-header {
@@ -256,7 +269,7 @@
 
         .playing-badge { font-size: 9px; color: #ff6a00; font-weight: 800; margin-top: 2px; }
 
-        /* QR CODE (คงอยู่ถาวร) */
+        /* QR CODE PANEL (ซ่อน/แสดงได้) */
         #qr-panel {
             position: absolute;
             bottom: 28px;
@@ -269,6 +282,13 @@
             backdrop-filter: blur(20px);
             z-index: 18;
             text-align: center;
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+
+        #qr-panel.hidden {
+            opacity: 0;
+            transform: translateY(15px);
+            pointer-events: none;
         }
 
         #qrcode {
@@ -459,6 +479,7 @@
         let isTransitioning = false;
         let nextSongTimer = null;
         let nowPlayingTimer = null;
+        let uiTimer = null;
         let bgTimer = null;
         let bgIndex = 0;
         let activeBg = 1;
@@ -576,6 +597,9 @@
             }
             queue.push(song);
             syncQueue();
+
+            showUI();
+            scheduleHideUI();
 
             if (!currentVideoId && isAppReady && !isTransitioning) {
                 playCurrent();
@@ -695,11 +719,21 @@
 
         function togglePlayFromController(shouldPause) {
             if (videoEl && videoEl.src) {
-                if (shouldPause) videoEl.pause();
-                else videoEl.play();
+                if (shouldPause) {
+                    videoEl.pause();
+                    showUI();
+                } else {
+                    videoEl.play();
+                    scheduleHideUI();
+                }
             } else if (player && typeof player.getPlayerState === "function") {
-                if (shouldPause) player.pauseVideo();
-                else player.playVideo();
+                if (shouldPause) {
+                    player.pauseVideo();
+                    showUI();
+                } else {
+                    player.playVideo();
+                    scheduleHideUI();
+                }
             }
         }
 
@@ -715,6 +749,7 @@
                 player.seekTo(0, true);
                 player.playVideo();
             }
+            scheduleHideUI();
         }
 
         function playCurrent() {
@@ -741,9 +776,11 @@
             document.getElementById("now-title").innerText = current.title || "ไม่ทราบชื่อเพลง";
             document.getElementById("now-channel").innerText = current.channel || "";
 
-            nowPlayingTimer = setTimeout(() => nowPlaying.classList.add("hidden"), 8000);
+            nowPlayingTimer = setTimeout(() => nowPlaying.classList.add("hidden"), 6000);
 
-            // โหลดและเล่นผ่าน IFrame YouTube เป็นหลัก
+            showUI();
+            scheduleHideUI();
+
             if (player && typeof player.loadVideoById === "function") {
                 try {
                     player.loadVideoById(current.videoId);
@@ -777,8 +814,11 @@
 
             nextSongTimer = setTimeout(() => {
                 hideScore();
-                if (queue.length > 0) playCurrent();
-                else showIdleScreen();
+                if (queue.length > 0) {
+                    playCurrent();
+                } else {
+                    showIdleScreen();
+                }
                 setTimeout(() => { isTransitioning = false; }, 800);
             }, 3500);
         }
@@ -798,8 +838,49 @@
             document.getElementById("now-playing").classList.add("hidden");
 
             startBgRotation();
+            showUI();
             updateQueueUI();
         }
+
+        /* AUTO HIDE CONTROLS (ซ่อนคิวเพลงและ QR Code) */
+        function scheduleHideUI() {
+            clearTimeout(uiTimer);
+            uiTimer = setTimeout(() => hideUI(), 6000);
+        }
+
+        function hideUI() {
+            // ซ่อนเฉพาะตอนที่มีเพลงกำลังเล่นอยู่
+            if (queue.length > 0) {
+                document.getElementById("top-bar").classList.add("hidden");
+                document.getElementById("now-playing").classList.add("hidden");
+                document.getElementById("queue-box").classList.add("hidden");
+                document.getElementById("qr-panel").classList.add("hidden");
+            }
+        }
+
+        function showUI() {
+            clearTimeout(uiTimer);
+            document.getElementById("top-bar").classList.remove("hidden");
+            document.getElementById("qr-panel").classList.remove("hidden");
+            if (queue.length > 0) {
+                document.getElementById("queue-box").classList.remove("hidden");
+                document.getElementById("queue-box").style.display = "block";
+            }
+        }
+
+        document.addEventListener("mousemove", () => {
+            if (isAppReady) {
+                showUI();
+                scheduleHideUI();
+            }
+        });
+
+        document.addEventListener("touchstart", () => {
+            if (isAppReady) {
+                showUI();
+                scheduleHideUI();
+            }
+        }, { passive: true });
 
         /* YOUTUBE IFRAME */
         function onYouTubeIframeAPIReady() {
@@ -835,7 +916,10 @@
         function onPlayerStateChange(event) {
             if (!window.YT || !YT.PlayerState) return;
 
-            if (event.data === YT.PlayerState.PAUSED) {
+            if (event.data === YT.PlayerState.PLAYING) {
+                scheduleHideUI();
+            } else if (event.data === YT.PlayerState.PAUSED) {
+                showUI();
                 try {
                     if (player && player.getCurrentTime() < 3) {
                         player.playVideo();
@@ -915,6 +999,10 @@
 
         document.addEventListener("keydown", event => {
             if (!isAppReady && (event.key === "Enter" || event.key === " ")) initApp();
+            if (isAppReady && event.key === "Escape") {
+                showUI();
+                scheduleHideUI();
+            }
         });
     </script>
 </body>
