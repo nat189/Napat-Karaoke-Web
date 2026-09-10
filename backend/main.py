@@ -10,12 +10,23 @@ app = FastAPI(title="Napat Karaoke Pro")
 # Frontend Routes
 # ==========================================
 
+# 1. โหมดหน้าจอเดียว (All-in-One: index.html)
+@app.api_route("/index", methods=["GET", "HEAD"])
+@app.api_route("/index.html", methods=["GET", "HEAD"])
+@app.api_route("/single", methods=["GET", "HEAD"])
+def get_index():
+    if os.path.exists("frontend/index.html"):
+        return FileResponse("frontend/index.html")
+    return FileResponse("frontend/display.html")
+
+# 2. โหมด 2 จอ: TV Display
 @app.api_route("/", methods=["GET", "HEAD"])
 @app.api_route("/display", methods=["GET", "HEAD"])
 @app.api_route("/display.html", methods=["GET", "HEAD"])
 def get_display():
     return FileResponse("frontend/display.html")
 
+# 3. โหมด 2 จอ: Remote Controller
 @app.api_route("/remote", methods=["GET", "HEAD"])
 @app.api_route("/controller", methods=["GET", "HEAD"])
 @app.api_route("/controller.html", methods=["GET", "HEAD"])
@@ -23,7 +34,7 @@ def get_controller():
     return FileResponse("frontend/controller.html")
 
 # ==========================================
-# API Search
+# API Search (yt-dlp)
 # ==========================================
 
 @app.get("/api/search")
@@ -53,18 +64,23 @@ def api_search(q: str = ""):
         return {"success": False, "error": str(e), "results": []}
 
 # ==========================================
-# API Direct Stream (แทนที่ YouTube IFrame)
+# API Direct Stream (จำลอง Android/iOS Client)
 # ==========================================
 
 @app.get("/api/stream")
-def stream_video(id: str):
+def stream_video(id: str, play: int = 1):
     if not id:
         raise HTTPException(status_code=400, detail="Missing video id")
 
     ydl_opts = {
-        'format': 'best[ext=mp4]/best',
+        'format': '18/best[ext=mp4]/best',
         'quiet': True,
         'no_warnings': True,
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['android', 'ios']
+            }
+        }
     }
 
     try:
@@ -74,7 +90,7 @@ def stream_video(id: str):
             if not stream_url:
                 raise HTTPException(status_code=404, detail="Stream URL not found")
             
-            # ส่ง Redirect 302 ไปยัง URL สตรีมตรง เพื่อให้เบราว์เซอร์ดึงวิดีโอมาเล่นทันที
+            # ส่ง Redirect 302 ไปยัง URL สตรีมตรง เพื่อให้เบราว์เซอร์ดึงไฟล์วิดีโอมาเล่นทันที
             return RedirectResponse(url=stream_url, status_code=302)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
