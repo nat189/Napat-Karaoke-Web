@@ -624,6 +624,8 @@
         let isDirectMode = false;
         let isAppReady = false;
         let isTransitioning = false;
+        let currentPlayingId = null; // ป้องกันการสั่งโหลดซ้ำเมื่อเพลงกำลังเล่นอยู่
+
         let nextSongTimer = null;
         let uiTimer = null;
         let nowPlayingTimer = null;
@@ -765,6 +767,7 @@
         function addSongFromController(song) {
             if (!song || !song.videoId) return;
 
+            // ตรวจสอบว่าเพลงนี้มีในคิวแล้วหรือไม่
             if (queue.some(item => item.videoId === song.videoId)) {
                 syncQueue();
                 return;
@@ -773,7 +776,8 @@
             queue.push(song);
             syncQueue();
 
-            if (queue.length === 1 && isAppReady && !isTransitioning) {
+            // ถ้าไม่มีเพลงเล่นอยู่เลย ให้เริ่มเล่นเพลงแรก
+            if (!currentPlayingId && isAppReady && !isTransitioning) {
                 playCurrent();
             }
         }
@@ -863,6 +867,7 @@
             syncQueue();
 
             if (wasCurrent) {
+                currentPlayingId = null;
                 if (queue.length > 0) {
                     playCurrent();
                 } else {
@@ -891,6 +896,7 @@
             hideScore();
 
             isTransitioning = true;
+            currentPlayingId = null;
             queue.shift();
             syncQueue();
 
@@ -933,12 +939,13 @@
             if (queue.length === 0) return;
             clearTimeout(nextSongTimer);
             isTransitioning = false;
+            currentPlayingId = null;
             hideScore();
             playCurrent();
         }
 
         /* =========================================================
-           DUAL PLAYBACK ENGINE
+           DUAL PLAYBACK ENGINE (SAFE LOCKED)
         ========================================================= */
         function isSingKingChannel(song) {
             if (!song) return false;
@@ -956,8 +963,15 @@
                 return;
             }
 
-            stopBgRotation();
             const current = queue[0];
+
+            // ถ้ารหัสเพลงนี้กำลังเล่นอยู่แล้ว ไม่ต้องสั่งโหลดซ้ำเด็ดขาด
+            if (currentPlayingId === current.videoId) {
+                return;
+            }
+
+            currentPlayingId = current.videoId;
+            stopBgRotation();
 
             document.getElementById("player-wrapper").style.display = "block";
             document.getElementById("empty-state").style.display = "none";
@@ -997,9 +1011,7 @@
                         suggestedQuality: "hd1080"
                     });
                     if (typeof player.unMute === "function") player.unMute();
-                    if (typeof player.setPlaybackQuality === "function") player.setPlaybackQuality("hd1080");
-
-                    setTimeout(disableYouTubeCaptions, 800);
+                    setTimeout(disableYouTubeCaptions, 1000);
                 } catch (error) {
                     console.error("loadVideoById error:", error);
                 }
@@ -1023,7 +1035,7 @@
             directPlayer.currentTime = 0;
 
             directPlayer.play().catch(e => {
-                console.warn("Direct stream autoplay blocked, retrying muted:", e);
+                console.warn("Direct stream autoplay blocked:", e);
                 directPlayer.muted = true;
                 directPlayer.play().then(() => { directPlayer.muted = false; });
             });
@@ -1033,14 +1045,12 @@
 
         function initDirectPlayerEvents() {
             directPlayer.onended = () => {
-                // ต้องเล่นมาแล้วเกิน 3 วินาที จึงนับว่าเพลงจบจริง ป้องกันจบหลอกตอนโหลด
-                if (directPlayer.currentTime > 3) {
-                    finishCurrentSong();
-                }
+                // จบเพลงจริงจาก Direct Stream
+                finishCurrentSong();
             };
 
             directPlayer.onerror = (e) => {
-                console.error("Direct player stream error:", e);
+                console.error("Direct player error:", e);
             };
         }
 
@@ -1052,6 +1062,7 @@
             }
 
             isTransitioning = true;
+            currentPlayingId = null;
             clearTimeout(nextSongTimer);
 
             document.getElementById("player-wrapper").style.display = "none";
@@ -1079,6 +1090,7 @@
 
         function showIdleScreen() {
             clearTimeout(nextSongTimer);
+            currentPlayingId = null;
             hideScore();
 
             if (player && typeof player.stopVideo === "function") {
@@ -1155,14 +1167,8 @@
             } else if (event.data === YT.PlayerState.PAUSED) {
                 showUI();
             } else if (event.data === YT.PlayerState.ENDED) {
-                // ป้องกัน Event จบเพลงหลอก: ต้องมี duration > 10 วิ และ currentTime > 3 วิ เท่านั้น
-                try {
-                    const cur = player.getCurrentTime();
-                    const dur = player.getDuration();
-                    if (dur > 10 && cur > 3) {
-                        finishCurrentSong();
-                    }
-                } catch (e) {}
+                // จบเพลงของ YouTube Iframe ดั้งเดิม
+                finishCurrentSong();
             }
         }
 
@@ -1170,7 +1176,7 @@
             console.error("YouTube player error:", event.data);
             if (isDirectMode) return;
 
-            // กรณีเจอ Error 150 (ฝังไม่ได้) ให้สลับมาใช้ direct stream ทันที
+            // กรณีเจอ Error 150 (YouTube บล็อก Iframe) ให้สลับมาใช้ direct stream ทันที
             if ([101, 150, 153].includes(event.data) && queue.length > 0) {
                 console.log("Error 150 detected, fallback to direct stream...");
                 playWithDirectStream(queue[0].videoId);
