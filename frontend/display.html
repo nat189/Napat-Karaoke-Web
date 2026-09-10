@@ -1033,14 +1033,14 @@
 
         function initDirectPlayerEvents() {
             directPlayer.onended = () => {
-                finishCurrentSong();
+                // ต้องเล่นมาแล้วเกิน 3 วินาที จึงนับว่าเพลงจบจริง ป้องกันจบหลอกตอนโหลด
+                if (directPlayer.currentTime > 3) {
+                    finishCurrentSong();
+                }
             };
 
             directPlayer.onerror = (e) => {
                 console.error("Direct player stream error:", e);
-                setTimeout(() => {
-                    if (queue.length > 0 && !isTransitioning) skipSong();
-                }, 2000);
             };
         }
 
@@ -1155,8 +1155,14 @@
             } else if (event.data === YT.PlayerState.PAUSED) {
                 showUI();
             } else if (event.data === YT.PlayerState.ENDED) {
-                // จบเพลงตามปกติ
-                finishCurrentSong();
+                // ป้องกัน Event จบเพลงหลอก: ต้องมี duration > 10 วิ และ currentTime > 3 วิ เท่านั้น
+                try {
+                    const cur = player.getCurrentTime();
+                    const dur = player.getDuration();
+                    if (dur > 10 && cur > 3) {
+                        finishCurrentSong();
+                    }
+                } catch (e) {}
             }
         }
 
@@ -1164,17 +1170,10 @@
             console.error("YouTube player error:", event.data);
             if (isDirectMode) return;
 
-            // กรณีเจอ Error 150 ให้สลับมาใช้ direct stream ทันที
+            // กรณีเจอ Error 150 (ฝังไม่ได้) ให้สลับมาใช้ direct stream ทันที
             if ([101, 150, 153].includes(event.data) && queue.length > 0) {
                 console.log("Error 150 detected, fallback to direct stream...");
                 playWithDirectStream(queue[0].videoId);
-                return;
-            }
-
-            if ([2, 5, 100].includes(event.data)) {
-                setTimeout(() => {
-                    if (queue.length > 0 && !isTransitioning && !isDirectMode) skipSong();
-                }, 2000);
             }
         }
 
