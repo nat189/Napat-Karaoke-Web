@@ -23,9 +23,6 @@
             position: relative;
         }
 
-        /* =========================================================
-           BACKGROUND / SCREEN SAVER
-        ========================================================= */
         #background {
             position: fixed;
             inset: 0;
@@ -55,9 +52,6 @@
             pointer-events: none;
         }
 
-        /* =========================================================
-           MAIN WRAPPER
-        ========================================================= */
         #app {
             position: relative;
             z-index: 2;
@@ -65,9 +59,6 @@
             height: 100%;
         }
 
-        /* =========================================================
-           TOP BAR
-        ========================================================= */
         #top-bar {
             position: absolute;
             top: 22px;
@@ -143,9 +134,6 @@
             box-shadow: 0 0 12px rgba(50, 215, 75, 0.7);
         }
 
-        /* =========================================================
-           PLAYER
-        ========================================================= */
         #player-wrapper {
             position: absolute;
             inset: 0;
@@ -167,9 +155,6 @@
             border: none;
         }
 
-        /* =========================================================
-           NOW PLAYING
-        ========================================================= */
         #now-playing {
             position: absolute;
             left: 28px;
@@ -212,9 +197,6 @@
             color: rgba(255, 255, 255, 0.62);
         }
 
-        /* =========================================================
-           QUEUE
-        ========================================================= */
         #queue-box {
             position: absolute;
             left: 28px;
@@ -324,9 +306,6 @@
             margin-top: 3px;
         }
 
-        /* =========================================================
-           QR PANEL
-        ========================================================= */
         #qr-panel {
             position: absolute;
             bottom: 28px;
@@ -388,9 +367,6 @@
             line-height: 1.4;
         }
 
-        /* =========================================================
-           START OVERLAY
-        ========================================================= */
         #start-overlay {
             position: fixed;
             inset: 0;
@@ -446,9 +422,6 @@
             box-shadow: 0 12px 35px rgba(255, 45, 85, 0.35);
         }
 
-        /* =========================================================
-           SCORE OVERLAY
-        ========================================================= */
         #score-overlay {
             position: fixed;
             inset: 0;
@@ -495,9 +468,6 @@
             100% { transform: scale(1); }
         }
 
-        /* =========================================================
-           EMPTY / SCREEN SAVER
-        ========================================================= */
         #empty-state {
             position: absolute;
             inset: 0;
@@ -629,9 +599,6 @@
     </script>
 
     <script>
-        /* =========================================================
-           STATE
-        ========================================================= */
         let peer = null;
         let connections = [];
         let currentRoom = "";
@@ -656,9 +623,6 @@
             "https://picsum.photos/1920/1080?random=105"
         ];
 
-        /* =========================================================
-           ROOM & QR
-        ========================================================= */
         function initRoom() {
             const params = new URLSearchParams(window.location.search);
             const urlRoom = params.get("room") || params.get("r");
@@ -680,7 +644,6 @@
         function createQRCode() {
             const qr = document.getElementById("qrcode");
             qr.innerHTML = "";
-            
             const targetUrl = `${window.location.origin}/controller.html?room=${encodeURIComponent(currentRoom)}`;
             new QRCode(qr, {
                 text: targetUrl,
@@ -690,9 +653,6 @@
             });
         }
 
-        /* =========================================================
-           PEERJS NETWORKING
-        ========================================================= */
         function initPeer() {
             setPeerStatus("กำลังเชื่อมต่อ...", false);
 
@@ -749,9 +709,6 @@
             if (dot) dot.classList.toggle("online", online);
         }
 
-        /* =========================================================
-           COMMAND ROUTER
-        ========================================================= */
         function handleCommand(data) {
             if (!data || !data.type) return;
 
@@ -774,8 +731,6 @@
                 case "RETRY_PLAY":
                     retryPlay();
                     break;
-                default:
-                    console.log("Unknown command:", data.type);
             }
         }
 
@@ -790,7 +745,7 @@
             queue.push(song);
             syncQueue();
 
-            if (queue.length === 1 && isAppReady && !isTransitioning) {
+            if (!currentVideoId && isAppReady && !isTransitioning) {
                 playCurrent();
             }
         }
@@ -808,9 +763,6 @@
             });
         }
 
-        /* =========================================================
-           QUEUE UI
-        ========================================================= */
         function updateQueueUI() {
             const list = document.getElementById("queue-list");
             const count = document.getElementById("queue-count");
@@ -953,9 +905,6 @@
             }
         }
 
-        /* =========================================================
-           PLAYBACK & SCORE TRANSITION
-        ========================================================= */
         function playCurrent() {
             clearTimeout(nextSongTimer);
             hideScore();
@@ -967,11 +916,7 @@
             }
 
             const current = queue[0];
-
-            // ป้องกันการสั่งโหลดซ้ำเมื่อเพลงเดิมกำลังเล่นอยู่
-            if (currentVideoId === current.videoId) {
-                return;
-            }
+            if (currentVideoId === current.videoId) return;
             currentVideoId = current.videoId;
 
             stopBgRotation();
@@ -991,13 +936,9 @@
 
             if (player && typeof player.loadVideoById === "function") {
                 try {
-                    player.loadVideoById({
-                        videoId: current.videoId
-                    });
-
+                    player.loadVideoById(current.videoId);
                     if (typeof player.unMute === "function") player.unMute();
-                    setTimeout(disableYouTubeCaptions, 1000);
-
+                    if (typeof player.playVideo === "function") player.playVideo();
                 } catch (error) {
                     console.error("loadVideoById error:", error);
                 }
@@ -1057,15 +998,12 @@
             updateQueueUI();
         }
 
-        /* =========================================================
-           YOUTUBE PLAYER SETUP
-        ========================================================= */
         function onYouTubeIframeAPIReady() {
             player = new YT.Player("player", {
                 width: "100%",
                 height: "100%",
                 playerVars: {
-                    autoplay: 0,
+                    autoplay: 1,
                     controls: 0,
                     disablekb: 1,
                     fs: 0,
@@ -1085,36 +1023,26 @@
         }
 
         function onPlayerReady() {
-            disableYouTubeCaptions();
             if (isAppReady) {
                 if (queue.length > 0) playCurrent();
                 else showIdleScreen();
             }
         }
 
-        function disableYouTubeCaptions() {
-            if (!player) return;
-            try {
-                if (typeof player.unloadModule === "function") player.unloadModule("captions");
-                if (typeof player.setOption === "function") player.setOption("captions", "track", {});
-            } catch (e) {}
-        }
-
         function onPlayerStateChange(event) {
             if (!window.YT || !YT.PlayerState) return;
 
             if (event.data === YT.PlayerState.PLAYING) {
-                disableYouTubeCaptions();
                 scheduleHideUI();
                 startScoreWatcher();
             } else if (event.data === YT.PlayerState.PAUSED) {
                 showUI();
                 stopScoreWatcher();
             } else if (event.data === YT.PlayerState.ENDED) {
-                // ตัวล็อกป้องกันจบหลอก 1 วินาที: ต้องเล่นไปเกิน 5 วินาทีเท่านั้น จึงยอมรับว่าเพลงจบจริง
                 try {
                     const current = player.getCurrentTime();
-                    if (current > 5) {
+                    // เพลงต้องเล่นเกิน 10 วิขึ้นไป ถึงจะยอมรับว่าจบจริง
+                    if (current > 10) {
                         stopScoreWatcher();
                         finishCurrentSong();
                     }
@@ -1124,7 +1052,6 @@
 
         function onPlayerError(event) {
             console.warn("YouTube player warning/error:", event.data);
-            // ไม่สั่งข้ามเพลงอัตโนมัติ เพื่อหยุดอาการเพลงเด้งทิ้ง
         }
 
         function startScoreWatcher() {
@@ -1134,8 +1061,7 @@
                 try {
                     const current = player.getCurrentTime();
                     const duration = player.getDuration();
-                    // ต้องเล่นเกิน 10 วินาที และเพลงยาวเกิน 20 วินาที จึงเริ่มตรวจช่วง 5 วิสุดท้าย
-                    if (duration > 20 && current > 10 && (duration - current <= 5) && (duration - current > 0)) {
+                    if (duration > 30 && current > 15 && (duration - current <= 5) && (duration - current > 0)) {
                         showScore();
                     }
                 } catch (e) {}
@@ -1165,9 +1091,6 @@
             document.getElementById("score-overlay").classList.remove("show");
         }
 
-        /* =========================================================
-           AUTO HIDE UI & SCREENSAVER
-        ========================================================= */
         function scheduleHideUI() {
             clearTimeout(uiTimer);
             uiTimer = setTimeout(() => hideUI(), 15000);
@@ -1226,9 +1149,6 @@
             }
         }
 
-        /* =========================================================
-           INITIALIZE APP
-        ========================================================= */
         function initApp() {
             if (isAppReady) return;
             isAppReady = true;
