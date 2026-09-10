@@ -568,9 +568,7 @@
 
     <div id="app">
         <div id="player-wrapper">
-            <!-- YouTube IFrame Player สำหรับเพลงทั่วไป -->
             <div id="player"></div>
-            <!-- HTML5 Video Player สำหรับ Sing King / สตรีมผ่าน unRAID -->
             <video id="direct-stream-player" playsinline autoplay></video>
         </div>
 
@@ -645,7 +643,7 @@
         /* =========================================================
            STATE & CONFIG
         ========================================================= */
-        const STREAM_API_URL = "/api/stream"; // ชี้ไปที่ Backend unRAID
+        const STREAM_API_URL = "/api/stream";
 
         let peer = null;
         let connections = [];
@@ -972,7 +970,7 @@
         }
 
         /* =========================================================
-           DUAL PLAYBACK ENGINE (YOUTUBE IFRAME + UNRAID STREAM)
+           DUAL PLAYBACK ENGINE
         ========================================================= */
         function isSingKingChannel(song) {
             if (!song) return false;
@@ -1007,7 +1005,6 @@
                 nowPlaying.classList.add("hidden");
             }, 8000);
 
-            // ตรวจสอบว่าเป็น Sing King หรือไม่
             if (isSingKingChannel(current)) {
                 playWithDirectStream(current.videoId);
             } else {
@@ -1081,7 +1078,6 @@
 
             directPlayer.addEventListener("error", (e) => {
                 console.error("Direct player stream error:", e);
-                // หากดึงสตรีมล้มเหลว ให้ข้ามเพลงไปเพลงถัดไป
                 setTimeout(() => {
                     if (queue.length > 0 && !isTransitioning) skipSong();
                 }, 2000);
@@ -1213,16 +1209,17 @@
 
         function onPlayerError(event) {
             console.error("YouTube player error:", event.data);
-            // กรณีเจอ Error 150 (ฝังวิดีโอไม่ได้) บนเพลงที่ไม่ได้กรองชื่อ Sing King ให้สลับมาใช้ direct stream ทันที
+            if (isDirectMode) return;
+
             if ([101, 150, 153].includes(event.data) && queue.length > 0) {
-                console.log("Error 150 detected, fallback to direct unRAID stream...");
+                console.log("Error 150 detected, fallback to direct stream...");
                 playWithDirectStream(queue[0].videoId);
                 return;
             }
 
             if ([2, 5, 100].includes(event.data)) {
                 setTimeout(() => {
-                    if (queue.length > 0 && !isTransitioning) skipSong();
+                    if (queue.length > 0 && !isTransitioning && !isDirectMode) skipSong();
                 }, 2000);
             }
         }
@@ -1243,7 +1240,7 @@
                     } catch (e) {}
                 }
 
-                if (duration > 0 && duration - current <= 5 && duration - current > 0) {
+                if (duration > 10 && current > 5 && (duration - current <= 5)) {
                     showScore();
                 }
             }, 1000);
