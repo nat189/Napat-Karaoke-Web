@@ -23,9 +23,6 @@
             position: relative;
         }
 
-        /* =========================================================
-           BACKGROUND / SCREEN SAVER
-        ========================================================= */
         #background {
             position: fixed;
             inset: 0;
@@ -55,9 +52,6 @@
             pointer-events: none;
         }
 
-        /* =========================================================
-           MAIN WRAPPER
-        ========================================================= */
         #app {
             position: relative;
             z-index: 2;
@@ -65,9 +59,6 @@
             height: 100%;
         }
 
-        /* =========================================================
-           TOP BAR
-        ========================================================= */
         #top-bar {
             position: absolute;
             top: 22px;
@@ -143,9 +134,6 @@
             box-shadow: 0 0 12px rgba(50, 215, 75, 0.7);
         }
 
-        /* =========================================================
-           PLAYER & STREAM WRAPPER
-        ========================================================= */
         #player-wrapper {
             position: absolute;
             inset: 0;
@@ -177,9 +165,6 @@
             background: #000;
         }
 
-        /* =========================================================
-           NOW PLAYING
-        ========================================================= */
         #now-playing {
             position: absolute;
             left: 28px;
@@ -222,9 +207,6 @@
             color: rgba(255, 255, 255, 0.62);
         }
 
-        /* =========================================================
-           QUEUE
-        ========================================================= */
         #queue-box {
             position: absolute;
             left: 28px;
@@ -334,9 +316,6 @@
             margin-top: 3px;
         }
 
-        /* =========================================================
-           QR PANEL
-        ========================================================= */
         #qr-panel {
             position: absolute;
             bottom: 28px;
@@ -398,9 +377,6 @@
             line-height: 1.4;
         }
 
-        /* =========================================================
-           START OVERLAY
-        ========================================================= */
         #start-overlay {
             position: fixed;
             inset: 0;
@@ -456,9 +432,6 @@
             box-shadow: 0 12px 35px rgba(255, 45, 85, 0.35);
         }
 
-        /* =========================================================
-           SCORE OVERLAY
-        ========================================================= */
         #score-overlay {
             position: fixed;
             inset: 0;
@@ -505,9 +478,6 @@
             100% { transform: scale(1); }
         }
 
-        /* =========================================================
-           EMPTY / SCREEN SAVER
-        ========================================================= */
         #empty-state {
             position: absolute;
             inset: 0;
@@ -660,7 +630,6 @@
         let bgTimer = null;
         let bgIndex = 0;
         let activeBg = 1;
-        let scoreWatcher = null;
 
         const backgrounds = [
             "https://picsum.photos/1920/1080?random=101",
@@ -920,7 +889,6 @@
             clearTimeout(nextSongTimer);
             clearTimeout(nowPlayingTimer);
             hideScore();
-            stopScoreWatcher();
 
             isTransitioning = true;
             queue.shift();
@@ -932,7 +900,7 @@
                 showIdleScreen();
             }
 
-            setTimeout(() => { isTransitioning = false; }, 1200);
+            setTimeout(() => { isTransitioning = false; }, 1000);
         }
 
         function togglePlayFromController(shouldPause) {
@@ -982,7 +950,6 @@
         function playCurrent() {
             clearTimeout(nextSongTimer);
             hideScore();
-            stopScoreWatcher();
 
             if (queue.length === 0) {
                 showIdleScreen();
@@ -1033,11 +1000,6 @@
                     if (typeof player.setPlaybackQuality === "function") player.setPlaybackQuality("hd1080");
 
                     setTimeout(disableYouTubeCaptions, 800);
-                    setTimeout(() => {
-                        if (player && typeof player.setPlaybackQuality === "function") {
-                            player.setPlaybackQuality("hd1080");
-                        }
-                    }, 1500);
                 } catch (error) {
                     console.error("loadVideoById error:", error);
                 }
@@ -1067,21 +1029,19 @@
             });
 
             scheduleHideUI();
-            startScoreWatcher();
         }
 
         function initDirectPlayerEvents() {
-            directPlayer.addEventListener("ended", () => {
-                stopScoreWatcher();
+            directPlayer.onended = () => {
                 finishCurrentSong();
-            });
+            };
 
-            directPlayer.addEventListener("error", (e) => {
+            directPlayer.onerror = (e) => {
                 console.error("Direct player stream error:", e);
                 setTimeout(() => {
                     if (queue.length > 0 && !isTransitioning) skipSong();
                 }, 2000);
-            });
+            };
         }
 
         function finishCurrentSong() {
@@ -1092,7 +1052,6 @@
             }
 
             isTransitioning = true;
-            stopScoreWatcher();
             clearTimeout(nextSongTimer);
 
             document.getElementById("player-wrapper").style.display = "none";
@@ -1114,13 +1073,12 @@
                 } else {
                     showIdleScreen();
                 }
-                setTimeout(() => { isTransitioning = false; }, 1000);
-            }, 4000);
+                setTimeout(() => { isTransitioning = false; }, 800);
+            }, 3500);
         }
 
         function showIdleScreen() {
             clearTimeout(nextSongTimer);
-            stopScoreWatcher();
             hideScore();
 
             if (player && typeof player.stopVideo === "function") {
@@ -1194,15 +1152,10 @@
             if (event.data === YT.PlayerState.PLAYING) {
                 disableYouTubeCaptions();
                 scheduleHideUI();
-                startScoreWatcher();
-                if (player && typeof player.setPlaybackQuality === "function") {
-                    player.setPlaybackQuality("hd1080");
-                }
             } else if (event.data === YT.PlayerState.PAUSED) {
                 showUI();
-                stopScoreWatcher();
             } else if (event.data === YT.PlayerState.ENDED) {
-                stopScoreWatcher();
+                // จบเพลงตามปกติ
                 finishCurrentSong();
             }
         }
@@ -1211,6 +1164,7 @@
             console.error("YouTube player error:", event.data);
             if (isDirectMode) return;
 
+            // กรณีเจอ Error 150 ให้สลับมาใช้ direct stream ทันที
             if ([101, 150, 153].includes(event.data) && queue.length > 0) {
                 console.log("Error 150 detected, fallback to direct stream...");
                 playWithDirectStream(queue[0].videoId);
@@ -1221,35 +1175,6 @@
                 setTimeout(() => {
                     if (queue.length > 0 && !isTransitioning && !isDirectMode) skipSong();
                 }, 2000);
-            }
-        }
-
-        function startScoreWatcher() {
-            stopScoreWatcher();
-            scoreWatcher = setInterval(() => {
-                let current = 0;
-                let duration = 0;
-
-                if (isDirectMode && directPlayer) {
-                    current = directPlayer.currentTime || 0;
-                    duration = directPlayer.duration || 0;
-                } else if (player && typeof player.getCurrentTime === "function" && typeof player.getDuration === "function") {
-                    try {
-                        current = player.getCurrentTime();
-                        duration = player.getDuration();
-                    } catch (e) {}
-                }
-
-                if (duration > 10 && current > 5 && (duration - current <= 5)) {
-                    showScore();
-                }
-            }, 1000);
-        }
-
-        function stopScoreWatcher() {
-            if (scoreWatcher) {
-                clearInterval(scoreWatcher);
-                scoreWatcher = null;
             }
         }
 
