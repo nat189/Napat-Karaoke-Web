@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Napat Karaoke Pro — Display</title>
+    <title>Napat Karaoke Pro — Display (Direct Stream)</title>
 
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -40,9 +40,7 @@
             transition: opacity 2s ease-in-out;
         }
 
-        .bg-layer.active {
-            opacity: 1;
-        }
+        .bg-layer.active { opacity: 1; }
 
         #background::after {
             content: "";
@@ -77,11 +75,7 @@
             pointer-events: none;
         }
 
-        .brand {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
+        .brand { display: flex; align-items: center; gap: 12px; }
 
         .brand-icon {
             width: 44px;
@@ -95,18 +89,8 @@
             font-size: 22px;
         }
 
-        .brand-text strong {
-            display: block;
-            font-size: 20px;
-            font-weight: 800;
-        }
-
-        .brand-text span {
-            display: block;
-            margin-top: 2px;
-            font-size: 12px;
-            color: rgba(255, 255, 255, 0.65);
-        }
+        .brand-text strong { display: block; font-size: 20px; font-weight: 800; }
+        .brand-text span { display: block; margin-top: 2px; font-size: 12px; color: rgba(255, 255, 255, 0.65); }
 
         .status {
             display: flex;
@@ -117,7 +101,6 @@
             background: rgba(0, 0, 0, 0.42);
             border: 1px solid rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(15px);
-            -webkit-backdrop-filter: blur(15px);
             font-size: 13px;
         }
 
@@ -126,7 +109,6 @@
             height: 9px;
             border-radius: 50%;
             background: #ff2d55;
-            box-shadow: 0 0 12px rgba(255, 45, 85, 0.7);
         }
 
         .status-dot.online {
@@ -142,17 +124,11 @@
             background: #000;
         }
 
-        #player {
-            position: absolute;
-            inset: 0;
+        /* Native Video Player */
+        #stream-video {
             width: 100%;
             height: 100%;
-        }
-
-        #player iframe {
-            width: 100% !important;
-            height: 100% !important;
-            border: none;
+            object-fit: contain;
         }
 
         #now-playing {
@@ -165,7 +141,6 @@
             background: rgba(0, 0, 0, 0.5);
             border: 1px solid rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(18px);
-            -webkit-backdrop-filter: blur(18px);
             z-index: 15;
             transition: opacity 0.5s ease, transform 0.5s ease;
         }
@@ -181,21 +156,11 @@
             color: #ff6a00;
             font-weight: 800;
             letter-spacing: 1px;
-            text-transform: uppercase;
             margin-bottom: 5px;
         }
 
-        #now-title {
-            font-size: 23px;
-            font-weight: 800;
-            line-height: 1.25;
-        }
-
-        #now-channel {
-            margin-top: 5px;
-            font-size: 13px;
-            color: rgba(255, 255, 255, 0.62);
-        }
+        #now-title { font-size: 23px; font-weight: 800; line-height: 1.25; }
+        #now-channel { margin-top: 5px; font-size: 13px; color: rgba(255, 255, 255, 0.62); }
 
         #queue-box {
             position: absolute;
@@ -208,7 +173,6 @@
             background: rgba(0, 0, 0, 0.52);
             border: 1px solid rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
             z-index: 15;
             transition: opacity 0.5s ease, transform 0.5s ease;
         }
@@ -226,10 +190,7 @@
             margin-bottom: 12px;
         }
 
-        .queue-title {
-            font-size: 15px;
-            font-weight: 800;
-        }
+        .queue-title { font-size: 15px; font-weight: 800; }
 
         .queue-count {
             min-width: 27px;
@@ -245,11 +206,7 @@
             font-weight: 800;
         }
 
-        #queue-list {
-            max-height: calc(55vh - 65px);
-            overflow-y: auto;
-            scrollbar-width: thin;
-        }
+        #queue-list { max-height: calc(55vh - 65px); overflow-y: auto; }
 
         .queue-item {
             display: flex;
@@ -275,10 +232,7 @@
             background: #222;
         }
 
-        .queue-info {
-            min-width: 0;
-            flex: 1;
-        }
+        .queue-info { min-width: 0; flex: 1; }
 
         .queue-name {
             font-size: 12px;
@@ -299,12 +253,7 @@
             text-overflow: ellipsis;
         }
 
-        .playing-badge {
-            font-size: 9px;
-            color: #ff6a00;
-            font-weight: 800;
-            margin-top: 3px;
-        }
+        .playing-badge { font-size: 9px; color: #ff6a00; font-weight: 800; margin-top: 3px; }
 
         #qr-panel {
             position: absolute;
@@ -316,17 +265,12 @@
             background: rgba(0, 0, 0, 0.58);
             border: 1px solid rgba(255, 255, 255, 0.12);
             backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
             z-index: 18;
             text-align: center;
             transition: opacity 0.5s ease, transform 0.5s ease;
         }
 
-        #qr-panel.hidden {
-            opacity: 0;
-            transform: translateY(-10px) scale(0.96);
-            pointer-events: none;
-        }
+        #qr-panel.hidden { opacity: 0; transform: translateY(-10px) scale(0.96); pointer-events: none; }
 
         #qrcode {
             width: 170px;
@@ -335,37 +279,15 @@
             padding: 8px;
             background: #fff;
             border-radius: 14px;
-            box-sizing: border-box;
             display: flex;
             align-items: center;
             justify-content: center;
         }
 
-        #qrcode img {
-            display: block;
-            width: 100% !important;
-            height: 100% !important;
-        }
-
-        .qr-title {
-            font-size: 13px;
-            font-weight: 800;
-        }
-
-        .room-code {
-            margin-top: 5px;
-            color: #ff6a00;
-            font-size: 14px;
-            font-weight: 900;
-            letter-spacing: 1px;
-        }
-
-        .qr-hint {
-            margin-top: 6px;
-            color: rgba(255, 255, 255, 0.55);
-            font-size: 10px;
-            line-height: 1.4;
-        }
+        #qrcode img { width: 100% !important; height: 100% !important; }
+        .qr-title { font-size: 13px; font-weight: 800; }
+        .room-code { margin-top: 5px; color: #ff6a00; font-size: 14px; font-weight: 900; }
+        .qr-hint { margin-top: 6px; color: rgba(255, 255, 255, 0.55); font-size: 10px; }
 
         #start-overlay {
             position: fixed;
@@ -385,26 +307,12 @@
             text-align: center;
             background: rgba(20, 20, 20, 0.8);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 30px 100px rgba(0, 0, 0, 0.6);
             backdrop-filter: blur(25px);
-            -webkit-backdrop-filter: blur(25px);
         }
 
-        .start-icon {
-            font-size: 58px;
-            margin-bottom: 15px;
-        }
-
-        .start-card h1 {
-            margin: 0;
-            font-size: 30px;
-        }
-
-        .start-card p {
-            margin: 12px 0 25px;
-            color: rgba(255, 255, 255, 0.58);
-            line-height: 1.5;
-        }
+        .start-icon { font-size: 58px; margin-bottom: 15px; }
+        .start-card h1 { margin: 0; font-size: 30px; }
+        .start-card p { margin: 12px 0 25px; color: rgba(255, 255, 255, 0.58); }
 
         .start-button {
             display: inline-flex;
@@ -418,8 +326,6 @@
             color: #fff;
             font-size: 16px;
             font-weight: 800;
-            cursor: pointer;
-            box-shadow: 0 12px 35px rgba(255, 45, 85, 0.35);
         }
 
         #score-overlay {
@@ -433,38 +339,19 @@
             background: radial-gradient(circle, rgba(255, 106, 0, 0.16), transparent 55%);
         }
 
-        #score-overlay.show {
-            display: flex;
-        }
-
-        .score-card {
-            text-align: center;
-            animation: scorePop 0.7s ease;
-        }
-
-        .score-label {
-            font-size: 22px;
-            font-weight: 800;
-        }
-
+        #score-overlay.show { display: flex; }
+        .score-card { text-align: center; animation: scorePop 0.7s ease; }
+        .score-label { font-size: 22px; font-weight: 800; }
         .score-number {
             margin-top: 8px;
             font-size: clamp(90px, 15vw, 180px);
-            line-height: 0.95;
             font-weight: 1000;
             color: #ff6a00;
-            text-shadow: 0 0 25px rgba(255, 106, 0, 0.45), 0 0 80px rgba(255, 45, 85, 0.3);
         }
-
-        .score-message {
-            margin-top: 10px;
-            font-size: 26px;
-            font-weight: 900;
-        }
+        .score-message { margin-top: 10px; font-size: 26px; font-weight: 900; }
 
         @keyframes scorePop {
             0% { opacity: 0; transform: scale(0.6); }
-            60% { opacity: 1; transform: scale(1.08); }
             100% { transform: scale(1); }
         }
 
@@ -479,44 +366,10 @@
             text-align: center;
         }
 
-        .empty-content {
-            margin-top: -5vh;
-            padding: 30px;
-        }
-
-        .empty-icon {
-            font-size: 70px;
-            filter: drop-shadow(0 10px 30px rgba(255, 45, 85, 0.25));
-        }
-
-        .empty-title {
-            margin-top: 12px;
-            font-size: 30px;
-            font-weight: 900;
-        }
-
-        .empty-text {
-            margin-top: 8px;
-            color: rgba(255, 255, 255, 0.55);
-            font-size: 15px;
-        }
-
-        @media (max-width: 900px) {
-            #queue-box { width: 280px; }
-            #qr-panel { width: 190px; }
-            #qrcode { width: 150px; height: 150px; }
-            #now-title { font-size: 18px; }
-        }
-
-        @media (max-width: 650px) {
-            #top-bar { left: 14px; right: 14px; top: 14px; }
-            #queue-box { left: 14px; right: auto; bottom: 14px; width: 280px; max-height: 35vh; }
-            #queue-list { max-height: calc(35vh - 65px); }
-            #now-playing { left: 14px; bottom: calc(35vh + 30px); max-width: calc(100vw - 28px); }
-            #qr-panel { right: 14px; bottom: 14px; }
-            .brand-text { display: none; }
-            .status { font-size: 11px; }
-        }
+        .empty-content { margin-top: -5vh; padding: 30px; }
+        .empty-icon { font-size: 70px; }
+        .empty-title { margin-top: 12px; font-size: 30px; font-weight: 900; }
+        .empty-text { margin-top: 8px; color: rgba(255, 255, 255, 0.55); font-size: 15px; }
     </style>
 </head>
 <body>
@@ -527,8 +380,9 @@
     </div>
 
     <div id="app">
+        <!-- Direct HTML5 Video Player -->
         <div id="player-wrapper">
-            <div id="player"></div>
+            <video id="stream-video" playsinline preload="auto"></video>
         </div>
 
         <div id="top-bar">
@@ -536,7 +390,7 @@
                 <div class="brand-icon">🎤</div>
                 <div class="brand-text">
                     <strong>Napat Karaoke Pro</strong>
-                    <span>TV Display</span>
+                    <span>TV Display (Direct)</span>
                 </div>
             </div>
             <div class="status">
@@ -593,17 +447,11 @@
     </div>
 
     <script>
-        const tag = document.createElement("script");
-        tag.src = "https://www.youtube.com/iframe_api";
-        document.head.appendChild(tag);
-    </script>
-
-    <script>
         let peer = null;
         let connections = [];
         let currentRoom = "";
         let queue = [];
-        let player = null;
+        let videoEl = null;
         let isAppReady = false;
         let isTransitioning = false;
         let nextSongTimer = null;
@@ -612,7 +460,6 @@
         let bgTimer = null;
         let bgIndex = 0;
         let activeBg = 1;
-        let scoreWatcher = null;
         let currentVideoId = null;
 
         const backgrounds = [
@@ -655,46 +502,29 @@
 
         function initPeer() {
             setPeerStatus("กำลังเชื่อมต่อ...", false);
-
             try {
                 peer = new Peer(currentRoom);
             } catch (error) {
-                console.error("Peer create error:", error);
                 setPeerStatus("สร้างห้องไม่สำเร็จ", false);
                 return;
             }
 
-            peer.on("open", () => {
-                setPeerStatus("พร้อมใช้งาน", true);
-            });
+            peer.on("open", () => setPeerStatus("พร้อมใช้งาน", true));
 
             peer.on("connection", conn => {
                 connections.push(conn);
-
                 conn.on("open", () => {
                     setPeerStatus(`มือถือเชื่อมต่อแล้ว (${connections.length})`, true);
                     syncQueue();
                 });
-
-                conn.on("data", data => {
-                    handleCommand(data);
-                });
-
+                conn.on("data", data => handleCommand(data));
                 conn.on("close", () => {
                     connections = connections.filter(c => c !== conn);
-                    if (connections.length === 0) {
-                        setPeerStatus("รอมือถือ", false);
-                    } else {
-                        setPeerStatus(`มือถือเชื่อมต่อแล้ว (${connections.length})`, true);
-                    }
+                    setPeerStatus(connections.length > 0 ? `มือถือเชื่อมต่อแล้ว (${connections.length})` : "รอมือถือ", connections.length > 0);
                 });
-
-                conn.on("error", err => console.error("Peer connection error:", err));
             });
 
-            peer.on("error", error => {
-                console.error("Peer error:", error);
-                setPeerStatus("กำลังเชื่อมต่อใหม่...", false);
+            peer.on("error", () => {
                 setTimeout(() => {
                     try { if (peer) peer.destroy(); } catch (e) {}
                     initPeer();
@@ -711,10 +541,8 @@
 
         function handleCommand(data) {
             if (!data || !data.type) return;
-
             switch (data.type) {
                 case "PING":
-                    // รับ Heartbeat เพื่อรักษาการเชื่อมต่อ
                     break;
                 case "ADD_SONG":
                     addSongFromController(data.song);
@@ -726,10 +554,7 @@
                     togglePlayFromController(data.isPaused);
                     break;
                 case "DELETE_SONG":
-                    // ห้ามมือถือสั่งลบเพลง index 0 ขณะที่เพลงกำลังเริ่มเล่น
-                    if (data.index === 0 && currentVideoId) {
-                        return;
-                    }
+                    if (data.index === 0 && currentVideoId) return;
                     deleteSong(data.index);
                     break;
                 case "MOVE_SONG":
@@ -743,12 +568,10 @@
 
         function addSongFromController(song) {
             if (!song || !song.videoId) return;
-
             if (queue.some(item => item.videoId === song.videoId)) {
                 syncQueue();
                 return;
             }
-
             queue.push(song);
             syncQueue();
 
@@ -761,11 +584,7 @@
             updateQueueUI();
             connections.forEach(conn => {
                 if (conn && conn.open) {
-                    try {
-                        conn.send({ type: "QUEUE_UPDATE", queue: queue });
-                    } catch (err) {
-                        console.error("Queue sync error:", err);
-                    }
+                    try { conn.send({ type: "QUEUE_UPDATE", queue: queue }); } catch (err) {}
                 }
             });
         }
@@ -778,7 +597,6 @@
             const nowPlaying = document.getElementById("now-playing");
 
             if (!list) return;
-
             count.innerText = queue.length;
             list.innerHTML = "";
 
@@ -803,7 +621,6 @@
                 const thumb = document.createElement("img");
                 thumb.className = "queue-thumb";
                 thumb.src = song.thumbnail || `https://i.ytimg.com/vi/${song.videoId}/mqdefault.jpg`;
-                thumb.onerror = () => { thumb.src = `https://i.ytimg.com/vi/${song.videoId}/hqdefault.jpg`; };
 
                 const info = document.createElement("div");
                 info.className = "queue-info";
@@ -840,11 +657,8 @@
 
             if (wasCurrent) {
                 currentVideoId = null;
-                if (queue.length > 0) {
-                    playCurrent();
-                } else {
-                    showIdleScreen();
-                }
+                if (queue.length > 0) playCurrent();
+                else showIdleScreen();
             }
         }
 
@@ -862,60 +676,45 @@
                 showIdleScreen();
                 return;
             }
-
             clearTimeout(nextSongTimer);
             clearTimeout(nowPlayingTimer);
             hideScore();
-            stopScoreWatcher();
 
             isTransitioning = true;
             currentVideoId = null;
             queue.shift();
             syncQueue();
 
-            if (queue.length > 0) {
-                playCurrent();
-            } else {
-                showIdleScreen();
-            }
+            if (queue.length > 0) playCurrent();
+            else showIdleScreen();
 
             setTimeout(() => { isTransitioning = false; }, 1000);
         }
 
         function togglePlayFromController(shouldPause) {
-            if (!player || typeof player.getPlayerState !== "function") return;
-            try {
-                if (shouldPause) {
-                    player.pauseVideo();
-                    showUI();
-                } else {
-                    player.playVideo();
-                    scheduleHideUI();
-                }
-            } catch (error) {
-                console.error("Toggle play error:", error);
+            if (!videoEl) return;
+            if (shouldPause) {
+                videoEl.pause();
+                showUI();
+            } else {
+                videoEl.play();
+                scheduleHideUI();
             }
         }
 
         function retryPlay() {
-            if (!player || queue.length === 0) return;
+            if (!videoEl || queue.length === 0) return;
             clearTimeout(nextSongTimer);
             isTransitioning = false;
-            currentVideoId = null;
             hideScore();
-            try {
-                player.seekTo(0, true);
-                player.playVideo();
-                scheduleHideUI();
-            } catch (error) {
-                console.error("Retry error:", error);
-            }
+            videoEl.currentTime = 0;
+            videoEl.play();
+            scheduleHideUI();
         }
 
         function playCurrent() {
             clearTimeout(nextSongTimer);
             hideScore();
-            stopScoreWatcher();
 
             if (queue.length === 0) {
                 showIdleScreen();
@@ -937,19 +736,12 @@
             document.getElementById("now-title").innerText = current.title || "ไม่ทราบชื่อเพลง";
             document.getElementById("now-channel").innerText = current.channel || "";
 
-            nowPlayingTimer = setTimeout(() => {
-                nowPlaying.classList.add("hidden");
-            }, 8000);
+            nowPlayingTimer = setTimeout(() => nowPlaying.classList.add("hidden"), 8000);
 
-            if (player && typeof player.loadVideoById === "function") {
-                try {
-                    player.loadVideoById(current.videoId);
-                    if (typeof player.unMute === "function") player.unMute();
-                    if (typeof player.playVideo === "function") player.playVideo();
-                } catch (error) {
-                    console.error("loadVideoById error:", error);
-                }
-            }
+            // สตรีมตรงผ่าน Backend
+            videoEl.src = `/api/stream?id=${encodeURIComponent(current.videoId)}`;
+            videoEl.load();
+            videoEl.play().catch(e => console.warn("Autoplay block:", e));
 
             updateQueueUI();
         }
@@ -963,7 +755,6 @@
 
             isTransitioning = true;
             currentVideoId = null;
-            stopScoreWatcher();
             clearTimeout(nextSongTimer);
 
             document.getElementById("player-wrapper").style.display = "none";
@@ -975,11 +766,8 @@
 
             nextSongTimer = setTimeout(() => {
                 hideScore();
-                if (queue.length > 0) {
-                    playCurrent();
-                } else {
-                    showIdleScreen();
-                }
+                if (queue.length > 0) playCurrent();
+                else showIdleScreen();
                 setTimeout(() => { isTransitioning = false; }, 800);
             }, 3500);
         }
@@ -987,11 +775,12 @@
         function showIdleScreen() {
             clearTimeout(nextSongTimer);
             currentVideoId = null;
-            stopScoreWatcher();
             hideScore();
 
-            if (player && typeof player.stopVideo === "function") {
-                try { player.stopVideo(); } catch (e) {}
+            if (videoEl) {
+                videoEl.pause();
+                videoEl.removeAttribute("src");
+                videoEl.load();
             }
 
             document.getElementById("player-wrapper").style.display = "none";
@@ -1005,88 +794,24 @@
             updateQueueUI();
         }
 
-        function onYouTubeIframeAPIReady() {
-            player = new YT.Player("player", {
-                width: "100%",
-                height: "100%",
-                playerVars: {
-                    autoplay: 1,
-                    controls: 0,
-                    disablekb: 1,
-                    fs: 0,
-                    modestbranding: 1,
-                    rel: 0,
-                    iv_load_policy: 3,
-                    cc_load_policy: 0,
-                    playsinline: 1,
-                    enablejsapi: 1
-                },
-                events: {
-                    onReady: onPlayerReady,
-                    onStateChange: onPlayerStateChange,
-                    onError: onPlayerError
-                }
-            });
-        }
+        function setupVideoEvents() {
+            videoEl = document.getElementById("stream-video");
 
-        function onPlayerReady() {
-            if (isAppReady) {
-                if (queue.length > 0) playCurrent();
-                else showIdleScreen();
-            }
-        }
-
-        function onPlayerStateChange(event) {
-            if (!window.YT || !YT.PlayerState) return;
-
-            if (event.data === YT.PlayerState.PLAYING) {
+            videoEl.addEventListener("play", () => {
                 scheduleHideUI();
-                startScoreWatcher();
-            } else if (event.data === YT.PlayerState.PAUSED) {
-                // ถ้าเพิ่งเล่นไปไม่ถึง 3 วินาทีแรก แล้วเบราว์เซอร์เผลอ Pause ให้สั่ง playVideo() ต่อทันที
-                try {
-                    if (player && player.getCurrentTime() < 3) {
-                        player.playVideo();
-                        return;
-                    }
-                } catch (e) {}
+            });
+
+            videoEl.addEventListener("pause", () => {
                 showUI();
-                stopScoreWatcher();
-            } else if (event.data === YT.PlayerState.ENDED) {
-                try {
-                    const current = player.getCurrentTime();
-                    // ต้องเล่นเกิน 10 วิขึ้นไป ถึงยอมรับว่าจบเพลงจริง
-                    if (current > 10) {
-                        stopScoreWatcher();
-                        finishCurrentSong();
-                    }
-                } catch (e) {}
-            }
-        }
+            });
 
-        function onPlayerError(event) {
-            console.warn("YouTube player warning/error:", event.data);
-        }
+            videoEl.addEventListener("ended", () => {
+                finishCurrentSong();
+            });
 
-        function startScoreWatcher() {
-            stopScoreWatcher();
-            scoreWatcher = setInterval(() => {
-                if (!player || typeof player.getCurrentTime !== "function" || typeof player.getDuration !== "function") return;
-                try {
-                    const current = player.getCurrentTime();
-                    const duration = player.getDuration();
-                    if (duration > 30 && current > 15 && (duration - current <= 5) && (duration - current > 0)) {
-                        showScore();
-                    }
-                } catch (e) {}
-            }, 1000);
-        }
-
-        function stopScoreWatcher() {
-            if (scoreWatcher) {
-                clearInterval(scoreWatcher);
-                scoreWatcher = null;
-            }
+            videoEl.addEventListener("error", (e) => {
+                console.error("Direct stream error:", e);
+            });
         }
 
         function showScore() {
@@ -1127,13 +852,8 @@
             }
         }
 
-        document.addEventListener("mousemove", () => {
-            if (isAppReady) { showUI(); scheduleHideUI(); }
-        });
-
-        document.addEventListener("touchstart", () => {
-            if (isAppReady) { showUI(); scheduleHideUI(); }
-        }, { passive: true });
+        document.addEventListener("mousemove", () => { if (isAppReady) { showUI(); scheduleHideUI(); } });
+        document.addEventListener("touchstart", () => { if (isAppReady) { showUI(); scheduleHideUI(); } }, { passive: true });
 
         function setBackground(url) {
             const next = activeBg === 1 ? document.getElementById("bg2") : document.getElementById("bg1");
@@ -1170,12 +890,11 @@
             document.getElementById("start-overlay").style.display = "none";
             initRoom();
             initPeer();
+            setupVideoEvents();
             startBgRotation();
 
-            if (player) {
-                if (queue.length > 0) playCurrent();
-                else showIdleScreen();
-            }
+            if (queue.length > 0) playCurrent();
+            else showIdleScreen();
         }
 
         updateQueueUI();
