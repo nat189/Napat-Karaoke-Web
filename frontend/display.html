@@ -713,16 +713,23 @@
             if (!data || !data.type) return;
 
             switch (data.type) {
+                case "PING":
+                    // รับ Heartbeat เพื่อรักษาการเชื่อมต่อ
+                    break;
                 case "ADD_SONG":
                     addSongFromController(data.song);
                     break;
                 case "SKIP":
-                    skipSong();
+                    if (!isTransitioning) skipSong();
                     break;
                 case "TOGGLE_PLAY":
                     togglePlayFromController(data.isPaused);
                     break;
                 case "DELETE_SONG":
+                    // ห้ามมือถือสั่งลบเพลง index 0 ขณะที่เพลงกำลังเริ่มเล่น
+                    if (data.index === 0 && currentVideoId) {
+                        return;
+                    }
                     deleteSong(data.index);
                     break;
                 case "MOVE_SONG":
@@ -1036,12 +1043,19 @@
                 scheduleHideUI();
                 startScoreWatcher();
             } else if (event.data === YT.PlayerState.PAUSED) {
+                // ถ้าเพิ่งเล่นไปไม่ถึง 3 วินาทีแรก แล้วเบราว์เซอร์เผลอ Pause ให้สั่ง playVideo() ต่อทันที
+                try {
+                    if (player && player.getCurrentTime() < 3) {
+                        player.playVideo();
+                        return;
+                    }
+                } catch (e) {}
                 showUI();
                 stopScoreWatcher();
             } else if (event.data === YT.PlayerState.ENDED) {
                 try {
                     const current = player.getCurrentTime();
-                    // เพลงต้องเล่นเกิน 10 วิขึ้นไป ถึงจะยอมรับว่าจบจริง
+                    // ต้องเล่นเกิน 10 วิขึ้นไป ถึงยอมรับว่าจบเพลงจริง
                     if (current > 10) {
                         stopScoreWatcher();
                         finishCurrentSong();
