@@ -660,7 +660,7 @@
                 stopHeartbeat();
                 scheduleReconnect();
             }
-        }, 3500);
+        }, 5000);
     }
 
     function stopHeartbeat() {
@@ -679,10 +679,10 @@
             } else {
                 initPeer();
             }
-        }, 2000);
+        }, 2500);
     }
 
-    /* PAGE VISIBILITY (สลับแอป/ปลดล็อกหน้าจอแล้วต่อทันที) */
+    /* PAGE VISIBILITY */
     document.addEventListener("visibilitychange", () => {
         if (document.visibilityState === "visible") {
             if (!conn || !conn.open) {
@@ -707,7 +707,7 @@
         }
     }
 
-    /* SEND ACTION (พร้อมระบบคิวส่งซ้ำอัตโนมัติเมื่อเน็ตสะดุด) */
+    /* SEND ACTION */
     function sendAction(type, payload = {}) {
         const action = { type, ...payload };
 
@@ -752,7 +752,9 @@
 
     function updatePauseButton() {
         const button = document.getElementById("pause-btn");
-        button.innerText = isPaused ? "▶️ เล่นต่อ" : "⏸️ หยุดชั่วคราว";
+        if (button) {
+            button.innerText = isPaused ? "▶️ เล่นต่อ" : "⏸️ หยุดชั่วคราว";
+        }
     }
 
     /* SEARCH MUSIC */
