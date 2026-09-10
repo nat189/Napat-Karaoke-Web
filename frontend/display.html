@@ -23,6 +23,9 @@
             position: relative;
         }
 
+        /* =========================================================
+           BACKGROUND / SCREEN SAVER
+        ========================================================= */
         #background {
             position: fixed;
             inset: 0;
@@ -52,6 +55,9 @@
             pointer-events: none;
         }
 
+        /* =========================================================
+           MAIN WRAPPER
+        ========================================================= */
         #app {
             position: relative;
             z-index: 2;
@@ -59,6 +65,9 @@
             height: 100%;
         }
 
+        /* =========================================================
+           TOP BAR
+        ========================================================= */
         #top-bar {
             position: absolute;
             top: 22px;
@@ -134,6 +143,9 @@
             box-shadow: 0 0 12px rgba(50, 215, 75, 0.7);
         }
 
+        /* =========================================================
+           PLAYER
+        ========================================================= */
         #player-wrapper {
             position: absolute;
             inset: 0;
@@ -152,19 +164,11 @@
         #player iframe {
             width: 100% !important;
             height: 100% !important;
-            border: none;
         }
 
-        #direct-stream-player {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            display: none;
-            background: #000;
-        }
-
+        /* =========================================================
+           NOW PLAYING
+        ========================================================= */
         #now-playing {
             position: absolute;
             left: 28px;
@@ -207,6 +211,9 @@
             color: rgba(255, 255, 255, 0.62);
         }
 
+        /* =========================================================
+           QUEUE
+        ========================================================= */
         #queue-box {
             position: absolute;
             left: 28px;
@@ -316,6 +323,9 @@
             margin-top: 3px;
         }
 
+        /* =========================================================
+           QR PANEL
+        ========================================================= */
         #qr-panel {
             position: absolute;
             bottom: 28px;
@@ -377,6 +387,9 @@
             line-height: 1.4;
         }
 
+        /* =========================================================
+           START OVERLAY
+        ========================================================= */
         #start-overlay {
             position: fixed;
             inset: 0;
@@ -432,6 +445,9 @@
             box-shadow: 0 12px 35px rgba(255, 45, 85, 0.35);
         }
 
+        /* =========================================================
+           SCORE OVERLAY
+        ========================================================= */
         #score-overlay {
             position: fixed;
             inset: 0;
@@ -478,6 +494,9 @@
             100% { transform: scale(1); }
         }
 
+        /* =========================================================
+           EMPTY / SCREEN SAVER
+        ========================================================= */
         #empty-state {
             position: absolute;
             inset: 0;
@@ -539,7 +558,6 @@
     <div id="app">
         <div id="player-wrapper">
             <div id="player"></div>
-            <video id="direct-stream-player" playsinline autoplay></video>
         </div>
 
         <div id="top-bar">
@@ -611,32 +629,22 @@
 
     <script>
         /* =========================================================
-           STATE & CONFIG
+           STATE
         ========================================================= */
-        const STREAM_API_URL = "/api/stream";
-
         let peer = null;
         let connections = [];
         let currentRoom = "";
         let queue = [];
         let player = null;
-        let directPlayer = null;
-        let isDirectMode = false;
         let isAppReady = false;
         let isTransitioning = false;
-        let currentPlayingId = null;
-        let activePlaybackToken = 0;
-        let playbackStartedAt = 0;
-        let youtubeReady = false;
-        let pendingVideoId = null;
-        let youtubeRetryCount = 0;
-
         let nextSongTimer = null;
         let uiTimer = null;
         let nowPlayingTimer = null;
         let bgTimer = null;
         let bgIndex = 0;
         let activeBg = 1;
+        let scoreWatcher = null;
 
         const backgrounds = [
             "https://picsum.photos/1920/1080?random=101",
@@ -780,7 +788,7 @@
             queue.push(song);
             syncQueue();
 
-            if (!currentPlayingId && isAppReady && !isTransitioning) {
+            if (queue.length === 1 && isAppReady && !isTransitioning) {
                 playCurrent();
             }
         }
@@ -870,7 +878,6 @@
             syncQueue();
 
             if (wasCurrent) {
-                currentPlayingId = null;
                 if (queue.length > 0) {
                     playCurrent();
                 } else {
@@ -897,9 +904,9 @@
             clearTimeout(nextSongTimer);
             clearTimeout(nowPlayingTimer);
             hideScore();
+            stopScoreWatcher();
 
             isTransitioning = true;
-            currentPlayingId = null;
             queue.shift();
             syncQueue();
 
@@ -909,21 +916,10 @@
                 showIdleScreen();
             }
 
-            setTimeout(() => { isTransitioning = false; }, 800);
+            setTimeout(() => { isTransitioning = false; }, 1200);
         }
 
         function togglePlayFromController(shouldPause) {
-            if (isDirectMode && directPlayer) {
-                if (shouldPause) {
-                    directPlayer.pause();
-                    showUI();
-                } else {
-                    directPlayer.play();
-                    scheduleHideUI();
-                }
-                return;
-            }
-
             if (!player || typeof player.getPlayerState !== "function") return;
             try {
                 if (shouldPause) {
@@ -939,46 +935,35 @@
         }
 
         function retryPlay() {
-            if (queue.length === 0) return;
+            if (!player || queue.length === 0) return;
             clearTimeout(nextSongTimer);
             isTransitioning = false;
-            currentPlayingId = null;
             hideScore();
-            playCurrent();
+            try {
+                player.seekTo(0, true);
+                if (typeof player.setPlaybackQuality === "function") player.setPlaybackQuality("hd1080");
+                player.playVideo();
+                scheduleHideUI();
+            } catch (error) {
+                console.error("Retry error:", error);
+            }
         }
 
         /* =========================================================
-           DUAL PLAYBACK ENGINE
+           PLAYBACK & SCORE TRANSITION
         ========================================================= */
-        function isSingKingChannel(song) {
-            if (!song) return false;
-            const title = (song.title || "").toLowerCase();
-            const channel = (song.channel || "").toLowerCase();
-            return channel.includes("sing king") || title.includes("sing king");
-        }
-
         function playCurrent() {
             clearTimeout(nextSongTimer);
             hideScore();
+            stopScoreWatcher();
 
             if (queue.length === 0) {
                 showIdleScreen();
                 return;
             }
 
-            const current = queue[0];
-            const videoId = current.videoId;
-
-            // ถ้ากำลังเล่นเพลงเดียวกันอยู่จริง ไม่สร้างคำสั่งเล่นซ้ำ
-            if (currentPlayingId === videoId && !isTransitioning) return;
-
-            currentPlayingId = videoId;
-            pendingVideoId = videoId;
-            youtubeRetryCount = 0;
-            activePlaybackToken++;
-            playbackStartedAt = Date.now();
-
             stopBgRotation();
+            const current = queue[0];
 
             document.getElementById("player-wrapper").style.display = "block";
             document.getElementById("empty-state").style.display = "none";
@@ -993,108 +978,33 @@
                 nowPlaying.classList.add("hidden");
             }, 8000);
 
-            if (isSingKingChannel(current)) {
-                playWithDirectStream(videoId, activePlaybackToken);
-            } else {
-                playWithYouTubeIframe(videoId, activePlaybackToken);
+            if (player && typeof player.loadVideoById === "function") {
+                try {
+                    player.loadVideoById({
+                        videoId: current.videoId,
+                        suggestedQuality: "hd1080"
+                    });
+
+                    if (typeof player.unMute === "function") player.unMute();
+
+                    if (typeof player.setPlaybackQuality === "function") {
+                        player.setPlaybackQuality("hd1080");
+                    }
+
+                    setTimeout(disableYouTubeCaptions, 800);
+
+                    setTimeout(() => {
+                        if (player && typeof player.setPlaybackQuality === "function") {
+                            player.setPlaybackQuality("hd1080");
+                        }
+                    }, 1500);
+
+                } catch (error) {
+                    console.error("loadVideoById error:", error);
+                }
             }
 
             updateQueueUI();
-        }
-
-        function playWithYouTubeIframe(videoId, token) {
-            isDirectMode = false;
-
-            if (directPlayer) {
-                try { directPlayer.pause(); } catch (e) {}
-                directPlayer.removeAttribute("src");
-                directPlayer.load();
-                directPlayer.style.display = "none";
-            }
-
-            document.getElementById("player").style.display = "block";
-
-            // NanoPi/Android TV อาจเรียก playCurrent ก่อน YouTube API พร้อม
-            if (!player || !youtubeReady || typeof player.loadVideoById !== "function") {
-                pendingVideoId = videoId;
-                return;
-            }
-
-            if (token !== activePlaybackToken || currentPlayingId !== videoId) return;
-
-            try {
-                player.loadVideoById({
-                    videoId: videoId,
-                    startSeconds: 0
-                });
-
-                // บาง WebView ต้องสั่ง play ซ้ำหลัง load
-                setTimeout(() => {
-                    if (
-                        token === activePlaybackToken &&
-                        currentPlayingId === videoId &&
-                        !isDirectMode &&
-                        player &&
-                        typeof player.playVideo === "function"
-                    ) {
-                        try { player.playVideo(); } catch (e) {}
-                    }
-                }, 700);
-            } catch (error) {
-                console.error("loadVideoById error:", error);
-            }
-        }
-
-        function playWithDirectStream(videoId, token) {
-            isDirectMode = true;
-
-            if (player && typeof player.stopVideo === "function") {
-                try { player.stopVideo(); } catch (e) {}
-            }
-
-            document.getElementById("player").style.display = "none";
-
-            if (!directPlayer) {
-                directPlayer = document.getElementById("direct-stream-player");
-                initDirectPlayerEvents();
-            }
-
-            directPlayer.style.display = "block";
-            directPlayer.src = `${STREAM_API_URL}?id=${encodeURIComponent(videoId)}&play=1`;
-            directPlayer.load();
-
-            directPlayer.play().catch(e => {
-                console.warn("Direct stream play blocked:", e);
-            });
-
-            scheduleHideUI();
-        }
-
-        function initDirectPlayerEvents() {
-            directPlayer.onplay = () => {
-                playbackStartedAt = Date.now();
-                scheduleHideUI();
-            };
-
-            directPlayer.onended = () => {
-                // ป้องกัน event เก่าหรือไฟล์ stream ปิดทันทีแล้วทำให้เพลงเด้ง
-                const playedSeconds = (Date.now() - playbackStartedAt) / 1000;
-                if (
-                    isDirectMode &&
-                    currentPlayingId &&
-                    !isTransitioning &&
-                    playedSeconds >= 10
-                ) {
-                    finishCurrentSong();
-                } else {
-                    console.warn("Ignoring premature direct-stream ended event", playedSeconds);
-                }
-            };
-
-            directPlayer.onerror = (e) => {
-                console.error("Direct player error:", e);
-                // ไม่ข้ามเพลงอัตโนมัติเมื่อ stream มี error
-            };
         }
 
         function finishCurrentSong() {
@@ -1105,15 +1015,10 @@
             }
 
             isTransitioning = true;
-            currentPlayingId = null;
+            stopScoreWatcher();
             clearTimeout(nextSongTimer);
 
             document.getElementById("player-wrapper").style.display = "none";
-            if (directPlayer) {
-                directPlayer.pause();
-                directPlayer.src = "";
-                directPlayer.style.display = "none";
-            }
             startBgRotation();
 
             queue.shift();
@@ -1127,22 +1032,17 @@
                 } else {
                     showIdleScreen();
                 }
-                setTimeout(() => { isTransitioning = false; }, 800);
-            }, 3500);
+                setTimeout(() => { isTransitioning = false; }, 1000);
+            }, 4000);
         }
 
         function showIdleScreen() {
             clearTimeout(nextSongTimer);
-            currentPlayingId = null;
+            stopScoreWatcher();
             hideScore();
 
             if (player && typeof player.stopVideo === "function") {
                 try { player.stopVideo(); } catch (e) {}
-            }
-            if (directPlayer) {
-                directPlayer.pause();
-                directPlayer.src = "";
-                directPlayer.style.display = "none";
             }
 
             document.getElementById("player-wrapper").style.display = "none";
@@ -1157,7 +1057,7 @@
         }
 
         /* =========================================================
-           YOUTUBE PLAYER SETUP (FIXED ORIGIN & ERROR LOOP)
+           YOUTUBE PLAYER SETUP
         ========================================================= */
         function onYouTubeIframeAPIReady() {
             player = new YT.Player("player", {
@@ -1173,7 +1073,9 @@
                     iv_load_policy: 3,
                     cc_load_policy: 0,
                     playsinline: 1,
-                    enablejsapi: 1
+                    enablejsapi: 1,
+                    vq: "hd1080",
+                    origin: window.location.origin
                 },
                 events: {
                     onReady: onPlayerReady,
@@ -1184,94 +1086,67 @@
         }
 
         function onPlayerReady() {
-            youtubeReady = true;
-
-            if (!isAppReady) return;
-
-            // เล่นเพลงที่ถูกเพิ่มเข้าคิวก่อน YouTube API พร้อม
-            if (pendingVideoId && queue.length > 0 && queue[0].videoId === pendingVideoId) {
-                const videoId = pendingVideoId;
-                pendingVideoId = null;
-                playWithYouTubeIframe(videoId, activePlaybackToken);
-            } else if (queue.length > 0) {
-                playCurrent();
-            } else {
-                showIdleScreen();
+            disableYouTubeCaptions();
+            if (isAppReady) {
+                if (queue.length > 0) playCurrent();
+                else showIdleScreen();
             }
         }
 
+        function disableYouTubeCaptions() {
+            if (!player) return;
+            try {
+                if (typeof player.unloadModule === "function") player.unloadModule("captions");
+                if (typeof player.setOption === "function") player.setOption("captions", "track", {});
+            } catch (e) {}
+        }
+
         function onPlayerStateChange(event) {
-            if (!window.YT || !YT.PlayerState || isDirectMode || !player) return;
+            if (!window.YT || !YT.PlayerState) return;
 
             if (event.data === YT.PlayerState.PLAYING) {
-                playbackStartedAt = Date.now();
-                youtubeRetryCount = 0;
+                disableYouTubeCaptions();
                 scheduleHideUI();
-                return;
-            }
-
-            if (event.data === YT.PlayerState.PAUSED) {
-                showUI();
-                return;
-            }
-
-            if (event.data === YT.PlayerState.ENDED) {
-                // สำคัญ: NanoPi/WebView บางตัวส่ง ENDED หลอกช่วงเริ่มโหลด
-                // ต้องยืนยันทั้งเวลาเล่นและสถานะเพลงปัจจุบันก่อนข้ามคิว
-                const expectedId = queue[0] && queue[0].videoId;
-                const elapsedSinceStart = (Date.now() - playbackStartedAt) / 1000;
-
-                try {
-                    const cur = Number(player.getCurrentTime()) || 0;
-
-                    if (
-                        !isTransitioning &&
-                        currentPlayingId &&
-                        expectedId === currentPlayingId &&
-                        cur >= 15 &&
-                        elapsedSinceStart >= 2
-                    ) {
-                        finishCurrentSong();
-                    } else {
-                        console.warn("Ignoring premature YouTube ENDED event", {
-                            currentPlayingId,
-                            expectedId,
-                            cur,
-                            elapsedSinceStart
-                        });
-                    }
-                } catch (e) {
-                    console.warn("Unable to verify YouTube ended event", e);
+                startScoreWatcher();
+                if (player && typeof player.setPlaybackQuality === "function") {
+                    player.setPlaybackQuality("hd1080");
                 }
+            } else if (event.data === YT.PlayerState.PAUSED) {
+                showUI();
+                stopScoreWatcher();
+            } else if (event.data === YT.PlayerState.ENDED) {
+                stopScoreWatcher();
+                finishCurrentSong();
             }
         }
 
         function onPlayerError(event) {
-            console.warn("[YouTube API Warning/Error code]:", event.data);
-
-            // ห้ามข้ามเพลงทันที เพราะบางเครื่องรายงาน error ชั่วคราวตอนเริ่มเล่น
-            if (
-                !isDirectMode &&
-                currentPlayingId &&
-                youtubeRetryCount < 1 &&
-                queue.length > 0 &&
-                queue[0].videoId === currentPlayingId
-            ) {
-                const retryVideoId = currentPlayingId;
-                const token = activePlaybackToken;
-                youtubeRetryCount++;
-
+            console.error("YouTube player error:", event.data);
+            if ([2, 5, 100, 101, 150, 153].includes(event.data)) {
                 setTimeout(() => {
-                    if (
-                        token === activePlaybackToken &&
-                        currentPlayingId === retryVideoId &&
-                        queue.length > 0 &&
-                        queue[0].videoId === retryVideoId
-                    ) {
-                        console.warn("Retrying current YouTube video:", retryVideoId);
-                        playWithYouTubeIframe(retryVideoId, token);
+                    if (queue.length > 0 && !isTransitioning) skipSong();
+                }, 2000);
+            }
+        }
+
+        function startScoreWatcher() {
+            stopScoreWatcher();
+            scoreWatcher = setInterval(() => {
+                if (!player || typeof player.getCurrentTime !== "function" || typeof player.getDuration !== "function") return;
+                try {
+                    const current = player.getCurrentTime();
+                    const duration = player.getDuration();
+                    if (duration > 0 && duration - current <= 5 && duration - current > 0) {
+                        showScore();
                     }
-                }, 1200);
+                } catch (e) {}
+            }, 1000);
+        }
+
+        function stopScoreWatcher() {
+            if (scoreWatcher) {
+                clearInterval(scoreWatcher);
+                scoreWatcher = null;
             }
         }
 
@@ -1364,14 +1239,9 @@
             initPeer();
             startBgRotation();
 
-            directPlayer = document.getElementById("direct-stream-player");
-            if (directPlayer) initDirectPlayerEvents();
-
-            if (youtubeReady && player) {
+            if (player) {
                 if (queue.length > 0) playCurrent();
                 else showIdleScreen();
-            } else {
-                showIdleScreen();
             }
         }
 
