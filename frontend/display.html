@@ -164,6 +164,7 @@
         #player iframe {
             width: 100% !important;
             height: 100% !important;
+            border: none;
         }
 
         /* =========================================================
@@ -645,6 +646,7 @@
         let bgIndex = 0;
         let activeBg = 1;
         let scoreWatcher = null;
+        let currentVideoId = null;
 
         const backgrounds = [
             "https://picsum.photos/1920/1080?random=101",
@@ -878,6 +880,7 @@
             syncQueue();
 
             if (wasCurrent) {
+                currentVideoId = null;
                 if (queue.length > 0) {
                     playCurrent();
                 } else {
@@ -907,6 +910,7 @@
             stopScoreWatcher();
 
             isTransitioning = true;
+            currentVideoId = null;
             queue.shift();
             syncQueue();
 
@@ -916,7 +920,7 @@
                 showIdleScreen();
             }
 
-            setTimeout(() => { isTransitioning = false; }, 1200);
+            setTimeout(() => { isTransitioning = false; }, 1000);
         }
 
         function togglePlayFromController(shouldPause) {
@@ -938,10 +942,10 @@
             if (!player || queue.length === 0) return;
             clearTimeout(nextSongTimer);
             isTransitioning = false;
+            currentVideoId = null;
             hideScore();
             try {
                 player.seekTo(0, true);
-                if (typeof player.setPlaybackQuality === "function") player.setPlaybackQuality("hd1080");
                 player.playVideo();
                 scheduleHideUI();
             } catch (error) {
@@ -950,7 +954,7 @@
         }
 
         /* =========================================================
-           PLAYBACK & SCORE TRANSITION (ENFORCED 1080p)
+           PLAYBACK & SCORE TRANSITION
         ========================================================= */
         function playCurrent() {
             clearTimeout(nextSongTimer);
@@ -962,8 +966,15 @@
                 return;
             }
 
-            stopBgRotation();
             const current = queue[0];
+
+            // ป้องกันการสั่งโหลดซ้ำเมื่อเพลงเดิมกำลังเล่นอยู่
+            if (currentVideoId === current.videoId) {
+                return;
+            }
+            currentVideoId = current.videoId;
+
+            stopBgRotation();
 
             document.getElementById("player-wrapper").style.display = "block";
             document.getElementById("empty-state").style.display = "none";
@@ -981,23 +992,11 @@
             if (player && typeof player.loadVideoById === "function") {
                 try {
                     player.loadVideoById({
-                        videoId: current.videoId,
-                        suggestedQuality: "hd1080"
+                        videoId: current.videoId
                     });
 
                     if (typeof player.unMute === "function") player.unMute();
-
-                    if (typeof player.setPlaybackQuality === "function") {
-                        player.setPlaybackQuality("hd1080");
-                    }
-
-                    setTimeout(disableYouTubeCaptions, 800);
-
-                    setTimeout(() => {
-                        if (player && typeof player.setPlaybackQuality === "function") {
-                            player.setPlaybackQuality("hd1080");
-                        }
-                    }, 1500);
+                    setTimeout(disableYouTubeCaptions, 1000);
 
                 } catch (error) {
                     console.error("loadVideoById error:", error);
@@ -1015,6 +1014,7 @@
             }
 
             isTransitioning = true;
+            currentVideoId = null;
             stopScoreWatcher();
             clearTimeout(nextSongTimer);
 
@@ -1032,12 +1032,13 @@
                 } else {
                     showIdleScreen();
                 }
-                setTimeout(() => { isTransitioning = false; }, 1000);
-            }, 4000);
+                setTimeout(() => { isTransitioning = false; }, 800);
+            }, 3500);
         }
 
         function showIdleScreen() {
             clearTimeout(nextSongTimer);
+            currentVideoId = null;
             stopScoreWatcher();
             hideScore();
 
@@ -1057,7 +1058,7 @@
         }
 
         /* =========================================================
-           YOUTUBE PLAYER SETUP (FIXED ORIGIN & ERROR HANDLER)
+           YOUTUBE PLAYER SETUP
         ========================================================= */
         function onYouTubeIframeAPIReady() {
             player = new YT.Player("player", {
@@ -1073,8 +1074,7 @@
                     iv_load_policy: 3,
                     cc_load_policy: 0,
                     playsinline: 1,
-                    enablejsapi: 1,
-                    vq: "hd1080"
+                    enablejsapi: 1
                 },
                 events: {
                     onReady: onPlayerReady,
@@ -1107,21 +1107,24 @@
                 disableYouTubeCaptions();
                 scheduleHideUI();
                 startScoreWatcher();
-                if (player && typeof player.setPlaybackQuality === "function") {
-                    player.setPlaybackQuality("hd1080");
-                }
             } else if (event.data === YT.PlayerState.PAUSED) {
                 showUI();
                 stopScoreWatcher();
             } else if (event.data === YT.PlayerState.ENDED) {
-                stopScoreWatcher();
-                finishCurrentSong();
+                // ตัวล็อกป้องกันจบหลอก 1 วินาที: ต้องเล่นไปเกิน 5 วินาทีเท่านั้น จึงยอมรับว่าเพลงจบจริง
+                try {
+                    const current = player.getCurrentTime();
+                    if (current > 5) {
+                        stopScoreWatcher();
+                        finishCurrentSong();
+                    }
+                } catch (e) {}
             }
         }
 
         function onPlayerError(event) {
             console.warn("YouTube player warning/error:", event.data);
-            // ปิดการสั่ง skipSong() อัตโนมัติ เพื่อหยุดอาการเพลงเด้งข้ามเอง
+            // ไม่สั่งข้ามเพลงอัตโนมัติ เพื่อหยุดอาการเพลงเด้งทิ้ง
         }
 
         function startScoreWatcher() {
@@ -1131,7 +1134,7 @@
                 try {
                     const current = player.getCurrentTime();
                     const duration = player.getDuration();
-                    // ต้องเล่นเกิน 10 วินาที และความยาวรวมมากกว่า 20 วินาที จึงเริ่มจับเวลาช่วง 5 วิสุดท้าย
+                    // ต้องเล่นเกิน 10 วินาที และเพลงยาวเกิน 20 วินาที จึงเริ่มตรวจช่วง 5 วิสุดท้าย
                     if (duration > 20 && current > 10 && (duration - current <= 5) && (duration - current > 0)) {
                         showScore();
                     }
